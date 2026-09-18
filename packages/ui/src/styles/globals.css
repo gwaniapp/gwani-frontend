@@ -1,0 +1,402 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ---------------------------------------------------------------------- */
+/* gwani design tokens                                                     */
+/*                                                                          */
+/* Forked from peakline's design system (same components, same type/       */
+/* radius/animation scale). `primary-*` is the brand ramp provided for     */
+/* gwani. `neutral-*` and `secondary-*` are a placeholder standard gray    */
+/* scale (secondary mirrors neutral) until a real secondary brand color    */
+/* is defined — swap both ramps out once that's decided; nothing else      */
+/* needs to change since components only reference the token names.        */
+/* Success/Danger/Warning reuse Tailwind's default green/red/yellow        */
+/* scales; Info adds a blue for parity with the others.                    */
+/* ---------------------------------------------------------------------- */
+
+@theme inline {
+	--font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+
+	/* type scale — carried over from peakline unchanged */
+
+	/* Headlines — Semi Bold */
+	--text-h1: 3rem; /* 48 */
+	--text-h1--line-height: 1.2083; /* 58 */
+	--text-h1--font-weight: 600;
+
+	--text-h2: 2.5rem; /* 40 */
+	--text-h2--line-height: 1.2; /* 48 */
+	--text-h2--font-weight: 600;
+
+	--text-h3: 2rem; /* 32 */
+	--text-h3--line-height: 1.1875; /* 38 */
+	--text-h3--font-weight: 600;
+
+	--text-h4: 1.75rem; /* 28 */
+	--text-h4--line-height: 1.2143; /* 34 */
+	--text-h4--font-weight: 600;
+
+	--text-h5: 1.5rem; /* 24 */
+	--text-h5--line-height: 1.1667; /* 28 */
+	--text-h5--font-weight: 600;
+
+	/* Subtitles — Semi Bold */
+	--text-s1: 1.125rem; /* 18 */
+	--text-s1--line-height: 1.5556; /* 28 */
+	--text-s1--font-weight: 600;
+
+	--text-s2: 1rem; /* 16 */
+	--text-s2--line-height: 1.5; /* 24 */
+	--text-s2--font-weight: 600;
+
+	/* Body */
+	--text-b1: 1rem; /* 16, Regular */
+	--text-b1--line-height: 1.5; /* 24 */
+	--text-b1--font-weight: 400;
+
+	--text-b2: 1rem; /* 16, Medium */
+	--text-b2--line-height: 1.5; /* 24 */
+	--text-b2--font-weight: 500;
+
+	--text-b3: 0.875rem; /* 14, Regular */
+	--text-b3--line-height: 1.4286; /* 20 */
+	--text-b3--font-weight: 400;
+
+	--text-b4: 0.875rem; /* 14, Medium */
+	--text-b4--line-height: 1.4286; /* 20 */
+	--text-b4--font-weight: 500;
+
+	/* Captions */
+	--text-c1: 0.75rem; /* 12, Regular */
+	--text-c1--line-height: 1.3333; /* 16 */
+	--text-c1--font-weight: 400;
+
+	--text-c2: 0.75rem; /* 12, Medium */
+	--text-c2--line-height: 1.3333; /* 16 */
+	--text-c2--font-weight: 500;
+
+	--text-c3: 0.625rem; /* 10, Medium */
+	--text-c3--line-height: 1.4; /* 14 */
+	--text-c3--font-weight: 500;
+
+	--text-label: 0.75rem; /* 12, Medium */
+	--text-label--line-height: 1.3333; /* 16 */
+	--text-label--font-weight: 500;
+
+	/* Button Font — Semi Bold */
+	--text-btn-giant: 1.125rem; /* 18 */
+	--text-btn-giant--line-height: 1.3333; /* 24 */
+	--text-btn-giant--font-weight: 600;
+
+	--text-btn-large: 1rem; /* 16 */
+	--text-btn-large--line-height: 1.25; /* 20 */
+	--text-btn-large--font-weight: 600;
+
+	--text-btn-medium: 0.875rem; /* 14 */
+	--text-btn-medium--line-height: 1.1429; /* 16 */
+	--text-btn-medium--font-weight: 600;
+
+	--text-btn-small: 0.75rem; /* 12 */
+	--text-btn-small--line-height: 1.3333; /* 16 */
+	--text-btn-small--font-weight: 600;
+
+	--text-btn-tiny: 0.625rem; /* 10 */
+	--text-btn-tiny--line-height: 1.2; /* 12 */
+	--text-btn-tiny--font-weight: 600;
+
+	/* radius scale */
+	--radius-sm: calc(var(--radius) * 0.5);
+	--radius-md: calc(var(--radius) * 0.75);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) * 1.35);
+	--radius-2xl: calc(var(--radius) * 1.85);
+
+	/* indeterminate linear progress (LoadingBar) */
+	--animate-loading-bar: loading-bar 1.4s ease-in-out infinite;
+
+	/* sweeping highlight (Skeleton) */
+	--animate-shimmer: shimmer 1.6s ease-in-out infinite;
+
+	/* brand ramps exposed as utilities: bg-primary-500, text-secondary-700, etc */
+	--color-primary-100: var(--primary-100);
+	--color-primary-200: var(--primary-200);
+	--color-primary-300: var(--primary-300);
+	--color-primary-400: var(--primary-400);
+	--color-primary-500: var(--primary-500);
+	--color-primary-600: var(--primary-600);
+	--color-primary-700: var(--primary-700);
+	--color-primary-800: var(--primary-800);
+	--color-primary-900: var(--primary-900);
+
+	--color-secondary-100: var(--secondary-100);
+	--color-secondary-200: var(--secondary-200);
+	--color-secondary-300: var(--secondary-300);
+	--color-secondary-400: var(--secondary-400);
+	--color-secondary-500: var(--secondary-500);
+	--color-secondary-600: var(--secondary-600);
+	--color-secondary-700: var(--secondary-700);
+	--color-secondary-800: var(--secondary-800);
+	--color-secondary-900: var(--secondary-900);
+
+	--color-neutral-100: var(--neutral-100);
+	--color-neutral-200: var(--neutral-200);
+	--color-neutral-300: var(--neutral-300);
+	--color-neutral-400: var(--neutral-400);
+	--color-neutral-500: var(--neutral-500);
+	--color-neutral-600: var(--neutral-600);
+	--color-neutral-700: var(--neutral-700);
+	--color-neutral-800: var(--neutral-800);
+	--color-neutral-900: var(--neutral-900);
+
+	--color-success-50: var(--success-50);
+	--color-success-100: var(--success-100);
+	--color-success-200: var(--success-200);
+	--color-success-300: var(--success-300);
+	--color-success-400: var(--success-400);
+	--color-success-500: var(--success-500);
+	--color-success-600: var(--success-600);
+	--color-success-700: var(--success-700);
+	--color-success-800: var(--success-800);
+	--color-success-900: var(--success-900);
+
+	--color-danger-50: var(--danger-50);
+	--color-danger-100: var(--danger-100);
+	--color-danger-200: var(--danger-200);
+	--color-danger-300: var(--danger-300);
+	--color-danger-400: var(--danger-400);
+	--color-danger-500: var(--danger-500);
+	--color-danger-600: var(--danger-600);
+	--color-danger-700: var(--danger-700);
+	--color-danger-800: var(--danger-800);
+	--color-danger-900: var(--danger-900);
+
+	--color-warning-50: var(--warning-50);
+	--color-warning-100: var(--warning-100);
+	--color-warning-200: var(--warning-200);
+	--color-warning-300: var(--warning-300);
+	--color-warning-400: var(--warning-400);
+	--color-warning-500: var(--warning-500);
+	--color-warning-600: var(--warning-600);
+	--color-warning-700: var(--warning-700);
+	--color-warning-800: var(--warning-800);
+	--color-warning-900: var(--warning-900);
+
+	--color-info-50: var(--info-50);
+	--color-info-100: var(--info-100);
+	--color-info-200: var(--info-200);
+	--color-info-300: var(--info-300);
+	--color-info-400: var(--info-400);
+	--color-info-500: var(--info-500);
+	--color-info-600: var(--info-600);
+	--color-info-700: var(--info-700);
+	--color-info-800: var(--info-800);
+	--color-info-900: var(--info-900);
+
+	/* semantic tokens (shadcn-compatible names) */
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-success: var(--success);
+	--color-success-foreground: var(--success-foreground);
+	--color-warning: var(--warning);
+	--color-warning-foreground: var(--warning-foreground);
+	--color-info: var(--info);
+	--color-info-foreground: var(--info-foreground);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+}
+
+:root {
+	/* --- brand: primary (indigo/violet) --- */
+	--primary-900: #13124a;
+	--primary-800: #191863;
+	--primary-700: #262595;
+	--primary-600: #3231c6;
+	--primary-500: #3f3df8;
+	--primary-400: #6564f9;
+	--primary-300: #8c8bfb;
+	--primary-200: #b2b1fc;
+	--primary-100: #d9d8fe;
+
+	/* --- neutral (standard gray scale — placeholder until a brand neutral is set) --- */
+	--neutral-900: #171717;
+	--neutral-800: #262626;
+	--neutral-700: #404040;
+	--neutral-600: #525252;
+	--neutral-500: #737373;
+	--neutral-400: #a3a3a3;
+	--neutral-300: #d4d4d4;
+	--neutral-200: #e5e5e5;
+	--neutral-100: #f5f5f5;
+
+	/* --- secondary (mirrors neutral — placeholder until a brand secondary color exists) --- */
+	--secondary-900: #171717;
+	--secondary-800: #262626;
+	--secondary-700: #404040;
+	--secondary-600: #525252;
+	--secondary-500: #737373;
+	--secondary-400: #a3a3a3;
+	--secondary-300: #d4d4d4;
+	--secondary-200: #e5e5e5;
+	--secondary-100: #f5f5f5;
+
+	/* --- semantic ramps (Tailwind default green/red/yellow + a blue for info) --- */
+	--success-50: #f0fdf4;
+	--success-100: #dcfce7;
+	--success-200: #bbf7d0;
+	--success-300: #86efac;
+	--success-400: #4ade80;
+	--success-500: #22c55e;
+	--success-600: #16a34a;
+	--success-700: #15803d;
+	--success-800: #166534;
+	--success-900: #14532d;
+
+	--danger-50: #fef2f2;
+	--danger-100: #fee2e2;
+	--danger-200: #fecaca;
+	--danger-300: #fca5a5;
+	--danger-400: #f87171;
+	--danger-500: #ef4444;
+	--danger-600: #dc2626;
+	--danger-700: #b91c1c;
+	--danger-800: #991b1b;
+	--danger-900: #7f1d1d;
+
+	--warning-50: #fefce8;
+	--warning-100: #fef9c3;
+	--warning-200: #fef08a;
+	--warning-300: #fde047;
+	--warning-400: #facc15;
+	--warning-500: #eab308;
+	--warning-600: #ca8a04;
+	--warning-700: #a16207;
+	--warning-800: #854d0e;
+	--warning-900: #713f12;
+
+	--info-50: #eff6ff;
+	--info-100: #dbeafe;
+	--info-200: #bfdbfe;
+	--info-300: #93c5fd;
+	--info-400: #60a5fa;
+	--info-500: #3b82f6;
+	--info-600: #2563eb;
+	--info-700: #1d4ed8;
+	--info-800: #1e40af;
+	--info-900: #1e3a8a;
+
+	/* --- surface + text --- */
+	--background: #ffffff;
+	--foreground: var(--neutral-900);
+
+	--card: #ffffff;
+	--card-foreground: var(--foreground);
+	--popover: #ffffff;
+	--popover-foreground: var(--foreground);
+
+	--primary: var(--primary-600);
+	--primary-foreground: #ffffff;
+
+	--secondary: var(--secondary-500);
+	--secondary-foreground: #ffffff;
+
+	--muted: var(--neutral-100);
+	--muted-foreground: var(--neutral-400);
+
+	--accent: var(--primary-100);
+	--accent-foreground: var(--primary-800);
+
+	--destructive: var(--danger-600);
+	--destructive-foreground: #ffffff;
+
+	--success: var(--success-600);
+	--success-foreground: #ffffff;
+
+	--warning: var(--warning-500);
+	--warning-foreground: var(--neutral-900);
+
+	--info: var(--info-600);
+	--info-foreground: #ffffff;
+
+	--border: var(--neutral-200);
+	--input: var(--neutral-200);
+	--ring: var(--primary-400);
+
+	--radius: 0.75rem;
+}
+
+@keyframes shimmer {
+	0% {
+		transform: translateX(-100%);
+	}
+	100% {
+		transform: translateX(100%);
+	}
+}
+
+@keyframes loading-bar {
+	0% {
+		left: -40%;
+	}
+	50% {
+		left: 30%;
+	}
+	100% {
+		left: 100%;
+	}
+}
+
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
+	html {
+		@apply font-sans;
+		scroll-behavior: smooth;
+		overflow-x: hidden;
+	}
+
+	/* Reserve the scrollbar's gutter permanently at desktop widths, so opening
+	   a Dialog (which locks body scroll, hiding the scrollbar) never shifts
+	   the page's content — the space was already there either way. Scoped to
+	   `lg` and up: classic (non-overlay) scrollbars only ever show at desktop
+	   widths anyway. Carried over from peakline, where this was hit and
+	   fixed for real (see its CLAUDE.md "Landmines"). */
+	@media (min-width: 1024px) {
+		html {
+			scrollbar-gutter: stable;
+		}
+	}
+}
+
+@layer components {
+	.custom-container {
+		@apply max-w-7xl mx-auto px-4 md:px-6 lg:px-8;
+	}
+	.hide-scroll::-webkit-scrollbar {
+		display: none;
+	}
+	.hide-scroll {
+		scrollbar-width: none;
+	}
+	.tap-target {
+		@apply min-h-11 min-w-11;
+	}
+}
