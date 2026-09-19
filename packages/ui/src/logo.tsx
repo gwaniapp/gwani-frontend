@@ -1,36 +1,31 @@
+import logoSrc from "./assets/logos/primary-logo.svg";
 import { cn } from "./lib/utils";
 
 /**
- * Text-based placeholder wordmark — no brand mark has been supplied yet.
- * Swap this for an `<img>`-based mark (see peakline's `Logo` for the
- * pattern: plain `<img>`, not `next/image`, since this package is
- * consumed under pnpm's strict linking) once real logo assets exist.
+ * Plain <img>, not next/image — this file is bundled into every app that
+ * imports it, and `next/image` isn't resolvable from inside this package
+ * under pnpm's strict linking (see CLAUDE.md). Wrap it in your own
+ * `next/link` where you need it to be clickable.
  */
 const SIZE_CLASS = {
-	sm: "text-s2",
-	md: "text-h5",
-	lg: "text-h4",
-	xl: "text-h3",
+	sm: "h-6",
+	md: "h-8",
+	lg: "h-6 md:h-13",
+	xl: "h-16",
 } as const;
 
-const VARIANT_CLASS = {
-	default: "text-primary-600",
-	dark: "text-white",
-} as const;
-
-interface LogoProps extends React.ComponentProps<"span"> {
+interface LogoProps extends Omit<React.ComponentProps<"img">, "src" | "alt"> {
 	size?: keyof typeof SIZE_CLASS;
-	variant?: keyof typeof VARIANT_CLASS;
 }
 
-function Logo({ size = "md", variant = "default", className, ...props }: LogoProps) {
+function Logo({ size = "md", className, ...props }: LogoProps) {
 	return (
-		<span
-			className={cn("font-sans font-bold tracking-tight", SIZE_CLASS[size], VARIANT_CLASS[variant], className)}
+		<img
+			src={logoSrc.src}
+			alt="Gwani"
+			className={cn("w-auto", SIZE_CLASS[size], className)}
 			{...props}
-		>
-			gwani
-		</span>
+		/>
 	);
 }
 

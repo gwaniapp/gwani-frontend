@@ -81,15 +81,25 @@ packages/
   via `next/font/google`, same pattern as peakline.
 - **Primary color**: the indigo/violet ramp supplied by design (`primary-100`…`primary-900`
   in `packages/ui/src/styles/globals.css`), not peakline's forest emerald.
-- **Neutral & secondary**: a standard gray scale, and `secondary-*` currently just mirrors
-  `neutral-*` — **placeholders**, not a real brand decision. No secondary brand color or
-  distinct neutral tint has been specified. Replace both ramps (values only, in
-  `globals.css`) the moment a real secondary color / neutral tint exists — no component
-  code needs to change, they only ever reference the token names.
-- **No brand assets ported**: peakline's actual logo files, favicon PNGs, and auth
-  illustrations were **not** copied (they're peakline's own brand imagery). `Logo` in
-  `packages/ui/src/logo.tsx` is a plain text wordmark placeholder; the favicon is a
-  generated placeholder SVG. Replace both once real brand assets exist.
+- **Neutral**: the supplied black/white ramp (`#FFFFFF`→`#000000`, 1–9 → `neutral-100`…`900`).
+  Note `neutral-100` is pure white, so "subtle light surface" uses (skeleton, disabled
+  inputs, empty-state icon) go through the `--muted` token (`#f5f5f5`) instead — don't reach
+  for `bg-neutral-100` expecting a tint. `--foreground` is `neutral-800` (`#111111`).
+- **Secondary**: still a **placeholder** standard gray scale — no secondary brand color has
+  been specified. Replace the `--secondary-*` values in `globals.css` once one exists; no
+  component code needs to change, they only reference the token names.
+- **Brand assets**: real ones now live in `packages/ui/src/assets/` — `logos/`
+  (`primary-logo.svg` used by `Logo`; `favicon.svg`), `favicon/` (PNG/ICO set + manifest;
+  copies served from `apps/web/public/favicon`, and `favicon.ico` also at
+  `apps/web/src/app/favicon.ico`), `images/` (auth panel background + hero). Peakline's own
+  brand imagery was never copied. The favicon set comes from a generator — if regenerated,
+  re-copy into `apps/web/public/favicon` and re-fix the manifest (`name`, `/favicon/` icon
+  paths, `theme_color: #3231C6`).
+- **Metadata**: site name/tagline/description live in `apps/web/src/lib/site.ts` (shared by
+  `layout.tsx` and the OG image). Tagline/description are placeholder wording derived from
+  the brief, not supplied copy — change freely. Titles use a `%s | Gwani` template, so pages
+  set only their own name. OG/Twitter images render from `app/og-image.tsx` with Manrope
+  `.woff` files in `app/og-fonts/` (Satori needs literal font files, not `next/font`).
 - **`badge.tsx`**: peakline's version baked in a 5-state `PaymentStatus`/`StatusBadge` pair
   specific to its payment product. Stripped down here to a generic `Badge` with
   `default`/`secondary`/`outline`/`success`/`warning`/`info`/`destructive` variants. Add a
@@ -137,6 +147,112 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
    the visual separately.
 5. **Every `<form>` using `form.handleSubmit(...)` needs `noValidate`** or native HTML5
    constraint validation silently blocks the submit before react-hook-form/zod ever run.
+
+## Auth screens
+
+- `app/auth/layout.tsx` wraps every auth route in `components/layouts/AuthLayout.tsx`: single
+  column below `lg`, sticky brand panel + form column from `lg` up. Screens just render into
+  it. Built so far: `/auth/sign-up` (role selection) and `/auth/sign-up/details?role=client|
+  provider` (the form; a missing/unknown role redirects back to role selection). Sign-up
+  posts `POST /auth/signup` (`useSignUp`), stores the email in `signUpFlowStore`
+  (sessionStorage) and pushes to `/auth/verify-otp`. `/auth/sign-in` is linked but not built.
+  The Terms/Privacy text in the form is styled like links but isn't linked (no such pages yet).
+- **The whole auth flow runs on mock data for now — the user wants no backend calls until the
+  UI is finished.** `MOCK_AUTH` in `lib/simulation.ts` (currently `true`) makes `useSignUp`
+  simulate instead of hitting `POST /auth/signup` (the real call stays in place behind the
+  flag; `taken@example.com` fails with a 409 to exercise the error state). Verify/resend have
+  no real implementation yet. Apply the same mock-first approach to every new auth screen
+  (sign-in, forgot/reset password, ...) — don't wire a screen to the real API unprompted; the
+  real signup call was live for a while and returned an internal error from the backend.
+- `/auth/verified?role=client|provider` is the success screen after OTP (anything but
+  `client` shows the provider version). Provider CTA → `/provider/onboarding`, client CTA
+  ("Find a provider", a placeholder — only the provider version is designed) → `/providers`;
+  neither destination exists yet. `signUpFlowStore` also carries the role chosen at sign-up.
+- Desktop content is anchored ~240px from the top (`AuthLayout`, matching every mock and the
+  panel headline), not vertically centered; the offset shrinks on short windows so content
+  isn't pushed off-screen. Tablet (`md`) stays centered, mobile is top-aligned.
+- **`/provider/onboarding` (provider registration) is mock-only too.** It uses its own shell
+  (`components/layouts/OnboardingLayout.tsx` — hero + benefits card on the left, no blue panel)
+  under `app/provider/(setup)/layout.tsx`. `useProviderRegistration` simulates the save and then
+  routes to `/provider/wallet`. Gaps to close before going live: the real call
+  is `PATCH /providers/me/profile` `{ bio, location_country, location_city, skill_slugs }` but
+  `skill_slugs` must come from the `GET /skills` catalog, so the free-text skills `TagInput`
+  needs to become a catalog autocomplete; the backend has no "category" (the categories in
+  `lib/mock/providerOptions.ts` are a grouping of its real skill names) and no separate
+  state/area (only country + city + geohash). States are mocked for NG/GH/KE/ZA only — other
+  countries get a free-text field. The benefit-card icons are meaningful ones (search/star/shield);
+  the mock used the same person glyph three times.
+- **Provider setup screens share `OnboardingLayout`** via the `app/provider/(setup)` route group
+  (`onboarding` → `wallet`). From `lg` up the viewport is fixed: logo + hero + benefits stay put
+  and only the right column scrolls (its scrollbar sits at the window edge); the hero shrinks on
+  short windows. Below `lg` the page scrolls normally and the left side is hidden.
+- **`TagInput` (`@repo/ui`) is an email-recipients-style field**: pills live *inside* the field,
+  a suggestions dropdown opens on focus (filtered as you type, arrows + Enter or click to pick),
+  and Enter/comma/blur commits typed text as a custom pill. In the registration form the
+  suggestions follow the chosen category (real skill names from the backend's catalog, grouped in
+  `lib/mock/providerOptions.ts`). Note `FormControl` overwrites `data-slot` on the inner input —
+  select it by `role="combobox"` in tests.
+- **`/provider/wallet` is mock-only** (`useWallet`): "Connect" accepts any well-formed Stellar
+  public key (`G` + 55 base32 chars) and "Generate a wallet" just succeeds; both then go to `/`
+  (next screen not designed). The real flows: linking is a *signed challenge* —
+  `POST /wallet/link/challenge` then `POST /wallet/link/verify` with a signature, so a pasted
+  public key alone can't be verified — and "generate" maps to the platform custodial wallet,
+  `POST /wallet/me/bootstrap`.
+- **Wallet flow (all simulated):** `/provider/wallet` (connect/generate) → `/provider/wallet/connecting`
+  (spinner, ~2.6s, `WalletConnecting`) → `/provider/wallet/connected` (`WalletConnected`: masked address,
+  copy, "Go to Dashboard" → `/provider/dashboard`, not built) or `/provider/wallet/failed` (plain
+  full-page `WalletFailed`, outside the `(setup)` layout). The key travels in `walletFlowStore`; a
+  pasted key ending in `ZZZZZ` fails, so the failure screen is reachable. Opening `/connected` or
+  `/connecting` directly previews the design (sample address). The connecting screen is where the
+  real link-challenge/verify or bootstrap calls belong. `useStoreHydrated` (`src/hooks`) is the
+  pattern for `skipHydration` stores. The support link on the failed screen uses a placeholder
+  address, `SUPPORT_EMAIL` in `lib/site.ts`.
+- If a freshly added route 404s in `next dev` while `next build` lists it, the dev cache is stale —
+  restart the server (deleting `apps/web/.next/dev` if needed).
+- **Not-found, error and loading are branded, not generic.** `components/StatusScreen.tsx`
+  renders the auth hero's "Verified Provider" card gone wrong (404 = unverified, 0.0 stars,
+  0 completed jobs; error = warning badge + escrow reassurance). `app/loading.tsx` uses
+  `GwaniLoader` from `@repo/ui` (twinkling four-point star with two orbiting nodes, pure
+  CSS/SVG, respects reduced motion). The error page's escrow line ("payments held in escrow
+  stay protected until you approve a release") is my copy — confirm it's an accurate promise.
+  There's no `global-error.tsx` yet (errors thrown in the root layout itself aren't covered).
+- **`/auth/verify-otp` is SIMULATED, not wired to the backend** (deliberately, per the user).
+  `useVerifyOtp`/`useResendOtp` in `features/auth/hooks/useVerifyOtp.ts` use
+  `simulateRequest` (`lib/simulation.ts`): any 6 digits succeed (clears the flow store and routes
+  to `/auth/verified?role=…`); `000000` fails with an
+  `AxiosError`-shaped 400 (`simulatedApiError`, so the message/4xx-warning handling is
+  identical to a real failure). To go live, swap each `mutationFn` for the real call —
+  `POST /auth/verify-otp` `{ email, otp }` (returns tokens → `useAuthStore.setTokens`, then route
+  by `user.role`) and `POST /auth/resend-otp` `{ email }` — and nothing else changes. The resend
+  countdown is a fixed 45s (`RESEND_SECONDS`); the backend doesn't return a TTL.
+- `AuthBackButton` (`features/auth/components`) only renders on routes listed in
+  `ROUTES_WITH_BACK` (currently just verify-otp): in the brand panel on desktop, in the header
+  on mobile. `signUpFlowStore` uses `skipHydration` (the OTP form rehydrates it in an effect) so
+  the first client render matches the server's.
+- The envelope on the OTP screen is a hand-drawn SVG (`EmailVerificationIllustration`) standing
+  in for an asset that wasn't in the images folder. The OTP mock's hero image also shows a
+  rounded-square crop where the other screens show the oval — the shipped `auth-image.svg` is
+  oval-masked, so all screens use it as-is.
+- Heading sizes are per-mock (measured, not a single scale): role select 40px, Sign Up 48px,
+  Email Verification 36px on desktop (20px on mobile).
+- Responsive verification: headless Chrome won't go narrower than ~500px with `--window-size`.
+  Either load the page in a narrow `<iframe>`, or (better, and needed for interaction) drive
+  Chrome over the DevTools protocol — `Emulation.setDeviceMetricsOverride` gives true mobile
+  emulation, and `Fetch.enable` lets you mock `/api/proxy/...` responses so tests never hit
+  (or create accounts on) the real backend.
+- `Input`/`Textarea` placeholders are `neutral-300` (light, per the design) and `Input` has a
+  transparent fill so it picks up the page tint. Failed 4xx API calls log as `console.warn`
+  (not `error`) in `ReactQueryProvider`, so expected failures don't trip Next's dev "Issue" badge.
+- Design copy differences I normalized (confirm they're intended): the mock says "Gwanni" in
+  places — brand is "Gwani" per the logo; "stellar" → "Stellar"; desktop subtitle "Which
+  describes you best?" → the mobile mock's "Which best describes you?".
+
+## Known issues
+
+- `packages/ui/src/assets/logos/*.svg` (~440KB each) and `images/auth-image.svg` (~1.8MB) are
+  Figma exports — vector wrappers around embedded base64 PNGs, so they're heavy. The auth hero
+  only loads at `lg`+ and the logo is on every page; export true vector / compressed WebP
+  before shipping.
 
 ## Conventions (once real features start)
 

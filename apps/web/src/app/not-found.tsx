@@ -1,17 +1,15 @@
 import Link from "next/link";
-import { Compass } from "lucide-react";
 import { Button } from "@repo/ui/button";
-import { StatusPage } from "@repo/ui/status-page";
+import { StatusScreen } from "@/components/StatusScreen";
 
 export default function NotFound() {
 	return (
-		<StatusPage
-			icon={Compass}
-			tone="primary"
-			title="Page not found"
-			description="The page you're looking for doesn't exist or may have moved."
-			action={
-				<Button asChild>
+		<StatusScreen
+			variant="not-found"
+			title="We couldn't find that page"
+			description="The link may be broken, or the page may have moved. Let's get you back to finding skilled people you can trust."
+			actions={
+				<Button asChild size="large">
 					<Link href="/">Back to home</Link>
 				</Button>
 			}

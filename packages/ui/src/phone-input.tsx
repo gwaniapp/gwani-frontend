@@ -143,7 +143,7 @@ function PhoneInput({
 					className={cn(
 						"h-11 w-28 cursor-pointer appearance-none rounded-lg border border-input bg-background pr-8 pl-3 text-transparent shadow-xs transition-colors outline-none",
 						"focus-visible:border-primary",
-						"disabled:cursor-not-allowed disabled:opacity-100 disabled:border-neutral-100 disabled:bg-neutral-100",
+						"disabled:cursor-not-allowed disabled:opacity-100 disabled:border-muted disabled:bg-muted",
 					)}
 				>
 					{COUNTRIES.map((c) => (

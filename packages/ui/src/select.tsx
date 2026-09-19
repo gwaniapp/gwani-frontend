@@ -14,15 +14,18 @@ function Select({
 	children,
 	...props
 }: React.ComponentProps<"select">) {
+	// An empty value means the placeholder option is showing — dim it like an Input placeholder.
+	// Give real `<option>`s `className="text-foreground"`: some browsers colour the open list like the select.
 	return (
 		<div className="relative">
 			<select
 				data-slot="select"
 				className={cn(
-					"flex h-11 w-full min-w-0 appearance-none rounded-lg border border-input bg-background px-3.5 pr-10 text-b1 text-foreground shadow-xs transition-colors outline-none",
+					"flex h-11 w-full min-w-0 appearance-none rounded-lg border border-input bg-transparent px-3.5 pr-10 text-b1 text-foreground shadow-xs transition-colors outline-none",
+					props.value === "" && "text-neutral-300",
 					"focus-visible:border-primary",
 					"aria-invalid:border-destructive aria-invalid:focus-visible:border-destructive",
-					"disabled:cursor-not-allowed disabled:opacity-100 disabled:border-neutral-100 disabled:bg-neutral-100 disabled:text-neutral-400",
+					"disabled:cursor-not-allowed disabled:opacity-100 disabled:border-muted disabled:bg-muted disabled:text-neutral-400",
 					className,
 				)}
 				{...props}

@@ -3,7 +3,7 @@ import { Manrope } from "next/font/google";
 import { Toaster } from "@repo/ui/sonner";
 import { ReactQueryProvider } from "@/components/providers/ReactQueryProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
-import { SITE_URL } from "@/lib/site";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -11,29 +11,39 @@ const manrope = Manrope({
 	subsets: ["latin"],
 });
 
-const SITE_NAME = "gwani";
-const SITE_DESCRIPTION = "gwani.";
+const DEFAULT_TITLE = `${SITE_NAME} — ${SITE_TAGLINE}`;
 
 export const metadata: Metadata = {
 	metadataBase: SITE_URL,
-	title: SITE_NAME,
+	// Pages set just their own name (e.g. "Sign up") and get " | Gwani"
+	// appended; the root page falls back to `default`.
+	title: { default: DEFAULT_TITLE, template: `%s | ${SITE_NAME}` },
 	description: SITE_DESCRIPTION,
+	applicationName: SITE_NAME,
 	manifest: "/favicon/site.webmanifest",
+	// /favicon.ico is served automatically from src/app/favicon.ico.
 	icons: {
-		icon: [{ url: "/favicon/favicon.svg", type: "image/svg+xml" }],
+		icon: [
+			{ url: "/favicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+			{ url: "/favicon/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+		],
+		apple: "/favicon/apple-touch-icon.png",
 	},
 	openGraph: {
-		title: SITE_NAME,
+		title: DEFAULT_TITLE,
 		description: SITE_DESCRIPTION,
 		url: "/",
 		siteName: SITE_NAME,
 		locale: "en_US",
 		type: "website",
+		// opengraph-image.tsx (this directory) supplies the image itself —
+		// Next.js wires it into these tags automatically.
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: SITE_NAME,
+		title: DEFAULT_TITLE,
 		description: SITE_DESCRIPTION,
+		// twitter-image.tsx supplies the image.
 	},
 };
 

@@ -7,7 +7,7 @@ function LoadingBar({ className }: { className?: string }) {
 			role="progressbar"
 			aria-label="Loading"
 			className={cn(
-				"relative h-1 w-52 overflow-hidden rounded-full bg-neutral-100",
+				"relative h-1 w-52 overflow-hidden rounded-full bg-muted",
 				className,
 			)}
 		>

@@ -225,7 +225,7 @@ axiosAuth.interceptors.response.use(
 				// `useRouter()` available here, so a full navigation is the only
 				// option.
 				// eslint-disable-next-line @next/next/no-location-assign-relative-destination
-				window.location.href = "/login";
+				window.location.href = "/auth/sign-in";
 			}
 		}
 

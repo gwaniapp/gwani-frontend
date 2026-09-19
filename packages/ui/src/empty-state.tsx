@@ -33,7 +33,7 @@ function EmptyState({
 				className,
 			)}
 		>
-			<span className="flex size-12 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
+			<span className="flex size-12 items-center justify-center rounded-full bg-muted text-neutral-500">
 				<Icon className="size-5" aria-hidden="true" />
 			</span>
 			<div className="flex flex-col gap-1">

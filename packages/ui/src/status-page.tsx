@@ -11,7 +11,7 @@ import { cn } from "./lib/utils";
 const TONE_BADGE = {
 	danger: "bg-danger-100 text-danger-600",
 	primary: "bg-primary-100 text-primary-700",
-	neutral: "bg-neutral-100 text-neutral-500",
+	neutral: "bg-muted text-neutral-500",
 } as const;
 
 interface StatusPageProps {

@@ -10,6 +10,10 @@ interface OtpInputProps {
 	onChange: (value: string) => void;
 	disabled?: boolean;
 	"aria-invalid"?: boolean;
+	/** Extra classes for each digit box. */
+	className?: string;
+	/** Extra classes for the row wrapping the boxes. */
+	groupClassName?: string;
 }
 
 /** A row of single-digit boxes for verification codes — auto-advances, handles backspace and paste. */
@@ -19,6 +23,8 @@ function OtpInput({
 	onChange,
 	disabled,
 	"aria-invalid": ariaInvalid,
+	className,
+	groupClassName,
 }: OtpInputProps) {
 	const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 	const digits = Array.from({ length }, (_, i) => value[i] ?? "");
@@ -56,7 +62,7 @@ function OtpInput({
 
 	return (
 		<div
-			className="flex justify-between gap-2"
+			className={cn("flex justify-between gap-2", groupClassName)}
 			role="group"
 			aria-label="Verification code"
 		>
@@ -86,10 +92,11 @@ function OtpInput({
 						// horizontal scroll instead. This lets every box shrink
 						// together to whatever actually fits, capping out at 48px on
 						// anything wide enough to spare it.
-						"h-14 min-w-0 max-w-12 flex-1 rounded-lg border border-input bg-background text-center text-h4 text-foreground shadow-xs transition-colors outline-none",
+						"h-14 min-w-0 max-w-12 flex-1 rounded-lg border border-input bg-transparent text-center text-h4 text-foreground shadow-xs transition-colors outline-none",
 						"focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary-200",
 						"aria-invalid:border-destructive aria-invalid:focus-visible:border-destructive aria-invalid:focus-visible:ring-danger-200",
-						"disabled:cursor-not-allowed disabled:opacity-100 disabled:border-neutral-100 disabled:bg-neutral-100 disabled:text-neutral-400",
+						"disabled:cursor-not-allowed disabled:opacity-100 disabled:border-muted disabled:bg-muted disabled:text-neutral-400",
+						className,
 					)}
 				/>
 			))}

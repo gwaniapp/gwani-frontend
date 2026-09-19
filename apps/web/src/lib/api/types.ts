@@ -8,6 +8,9 @@
 
 export type UserRole = "CLIENT" | "PROVIDER" | "ADMIN";
 
+/** `ADMIN` accounts can't be self-registered (per the backend's own docs). */
+export type SignUpRole = Exclude<UserRole, "ADMIN">;
+
 /**
  * Every successful response is wrapped in this envelope by a global
  * interceptor — confirmed live against `/skills`, `/health/live`, and

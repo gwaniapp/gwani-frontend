@@ -21,9 +21,9 @@ const buttonVariants = cva(
 				secondary:
 					"bg-secondary text-secondary-foreground hover:bg-secondary-600 active:bg-secondary-700 focus-visible:bg-secondary-600 focus-visible:ring-secondary-300 disabled:bg-neutral-200 disabled:text-neutral-400",
 				outline:
-					"border border-border bg-transparent text-foreground hover:bg-muted active:bg-neutral-100 focus-visible:bg-muted focus-visible:ring-primary-200 disabled:bg-transparent disabled:border-neutral-200 disabled:text-neutral-400",
+					"border border-border bg-transparent text-foreground hover:bg-muted active:bg-neutral-200 focus-visible:bg-muted focus-visible:ring-primary-200 disabled:bg-transparent disabled:border-neutral-200 disabled:text-neutral-400",
 				ghost:
-					"bg-transparent text-foreground hover:bg-muted active:bg-neutral-100 focus-visible:bg-muted focus-visible:ring-primary-200 disabled:bg-transparent disabled:text-neutral-400",
+					"bg-transparent text-foreground hover:bg-muted active:bg-neutral-200 focus-visible:bg-muted focus-visible:ring-primary-200 disabled:bg-transparent disabled:text-neutral-400",
 				destructive:
 					"bg-destructive text-destructive-foreground hover:bg-danger-700 active:bg-danger-800 focus-visible:bg-danger-700 focus-visible:ring-danger-200 disabled:bg-neutral-200 disabled:text-neutral-400",
 				link: "bg-transparent text-primary underline-offset-4 hover:underline p-0 h-auto disabled:text-neutral-400",

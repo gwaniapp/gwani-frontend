@@ -14,4 +14,12 @@ const SITE_URL = new URL(
 		"http://localhost:3000",
 );
 
-export { SITE_URL };
+const SITE_NAME = "Gwani";
+const SITE_TAGLINE = "Hire verified professionals. Pay with confidence.";
+const SITE_DESCRIPTION =
+	"Find skilled, verified service providers and hire them with confidence — your payment is held in escrow on Stellar until the job is done.";
+
+// Placeholder address — not supplied by the team; replace with the real support contact.
+const SUPPORT_EMAIL = "support@usegwani.com";
+
+export { SITE_URL, SITE_NAME, SITE_TAGLINE, SITE_DESCRIPTION, SUPPORT_EMAIL };

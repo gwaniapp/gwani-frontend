@@ -5,11 +5,11 @@
 /* gwani design tokens                                                     */
 /*                                                                          */
 /* Forked from peakline's design system (same components, same type/       */
-/* radius/animation scale). `primary-*` is the brand ramp provided for     */
-/* gwani. `neutral-*` and `secondary-*` are a placeholder standard gray    */
-/* scale (secondary mirrors neutral) until a real secondary brand color    */
-/* is defined — swap both ramps out once that's decided; nothing else      */
-/* needs to change since components only reference the token names.        */
+/* radius/animation scale). `primary-*` and `neutral-*` are the brand      */
+/* ramps provided for gwani. `secondary-*` is a placeholder standard gray  */
+/* scale until a real secondary brand color is defined — swap it out once  */
+/* that's decided; nothing else needs to change since components only      */
+/* reference the token names.                                              */
 /* Success/Danger/Warning reuse Tailwind's default green/red/yellow        */
 /* scales; Info adds a blue for parity with the others.                    */
 /* ---------------------------------------------------------------------- */
@@ -116,6 +116,12 @@
 
 	/* sweeping highlight (Skeleton) */
 	--animate-shimmer: shimmer 1.6s ease-in-out infinite;
+
+	/* GwaniLoader + illustrated status screens */
+	--animate-orbit: orbit 2.4s linear infinite;
+	--animate-orbit-reverse: orbit 3.6s linear infinite reverse;
+	--animate-twinkle: twinkle 1.8s ease-in-out infinite;
+	--animate-float: float 4s ease-in-out infinite;
 
 	/* brand ramps exposed as utilities: bg-primary-500, text-secondary-700, etc */
 	--color-primary-100: var(--primary-100);
@@ -232,18 +238,19 @@
 	--primary-200: #b2b1fc;
 	--primary-100: #d9d8fe;
 
-	/* --- neutral (standard gray scale — placeholder until a brand neutral is set) --- */
-	--neutral-900: #171717;
-	--neutral-800: #262626;
-	--neutral-700: #404040;
-	--neutral-600: #525252;
-	--neutral-500: #737373;
-	--neutral-400: #a3a3a3;
-	--neutral-300: #d4d4d4;
-	--neutral-200: #e5e5e5;
-	--neutral-100: #f5f5f5;
+	/* --- neutral (the supplied black/white ramp, 1–9 → 100–900). Note 100 is pure white, so
+	   "subtle light surface" uses go through --muted instead of neutral-100. --- */
+	--neutral-900: #000000;
+	--neutral-800: #111111;
+	--neutral-700: #0c0c0c;
+	--neutral-600: #060606;
+	--neutral-500: #4d4d4d;
+	--neutral-400: #666666;
+	--neutral-300: #cccccc;
+	--neutral-200: #d9d9d9;
+	--neutral-100: #ffffff;
 
-	/* --- secondary (mirrors neutral — placeholder until a brand secondary color exists) --- */
+	/* --- secondary (standard gray scale — placeholder until a brand secondary color exists) --- */
 	--secondary-900: #171717;
 	--secondary-800: #262626;
 	--secondary-700: #404040;
@@ -301,7 +308,7 @@
 
 	/* --- surface + text --- */
 	--background: #ffffff;
-	--foreground: var(--neutral-900);
+	--foreground: var(--neutral-800);
 
 	--card: #ffffff;
 	--card-foreground: var(--foreground);
@@ -314,7 +321,7 @@
 	--secondary: var(--secondary-500);
 	--secondary-foreground: #ffffff;
 
-	--muted: var(--neutral-100);
+	--muted: #f5f5f5;
 	--muted-foreground: var(--neutral-400);
 
 	--accent: var(--primary-100);
@@ -345,6 +352,34 @@
 	}
 	100% {
 		transform: translateX(100%);
+	}
+}
+
+@keyframes orbit {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes twinkle {
+	0%,
+	100% {
+		transform: scale(1);
+		opacity: 1;
+	}
+	50% {
+		transform: scale(0.8);
+		opacity: 0.7;
+	}
+}
+
+@keyframes float {
+	0%,
+	100% {
+		transform: translateY(0);
+	}
+	50% {
+		transform: translateY(-8px);
 	}
 }
 

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { TriangleAlert } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@repo/ui/button";
-import { StatusPage } from "@repo/ui/status-page";
+import { StatusScreen } from "@/components/StatusScreen";
 
 export default function Error({
 	error,
@@ -17,12 +17,21 @@ export default function Error({
 	}, [error]);
 
 	return (
-		<StatusPage
-			icon={TriangleAlert}
-			tone="danger"
+		<StatusScreen
+			variant="error"
 			title="Something went wrong"
-			description="We hit a snag processing that. Try again, and if it keeps happening, let us know."
-			action={<Button onClick={() => reset()}>Try again</Button>}
+			description="We hit a problem on our side. Try again in a moment. Payments held in escrow stay protected until you approve a release."
+			actions={
+				<>
+					<Button size="large" onClick={() => reset()}>
+						Try again
+					</Button>
+					<Button asChild size="large" variant="outline">
+						<Link href="/">Back to home</Link>
+					</Button>
+				</>
+			}
+			footnote={error.digest ? `Error reference: ${error.digest}` : undefined}
 		/>
 	);
 }
