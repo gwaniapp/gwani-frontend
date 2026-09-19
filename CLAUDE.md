@@ -259,6 +259,93 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   places — brand is "Gwani" per the logo; "stellar" → "Stellar"; desktop subtitle "Which
   describes you best?" → the mobile mock's "Which best describes you?".
 
+## Provider dashboard
+
+- Lives under `app/provider/dashboard/*` (layout → `features/dashboard/components/DashboardShell`).
+  Built so far: the shell, the overview (`/provider/dashboard`), the profile
+  (`/provider/dashboard/profile`) My Jobs (`/provider/dashboard/jobs`) and a job's detail
+  (`/provider/dashboard/jobs/[id]`). the wallet (`/provider/dashboard/wallet`). The menu also links to `/settings`,
+  `/help` under it — neither exists yet (they hit the branded 404). Note `/provider/wallet` (no `dashboard`) is the *setup*
+  connect-wallet screen, a different thing from the dashboard's Wallet page.
+- **Keep the mock's floating-card look** (logo on the page beside a header card with search/bell/
+  user, a menu card, a bordered page card) — the user was explicit that only the *positioning*
+  should change, not the design (an attempt at flush peakline-style bars was rejected). `lg`+: the
+  header row (a solid strip so scrolled content hides behind it) and the menu card are `fixed`; the
+  menu card runs down to 20px above the bottom of the screen. `fixed`, not `sticky`, and the content
+  column reserves their space with `lg:pt-36.5` (146px = 20 + 98 header card + 28 gap) and
+  `lg:pl-67` (268px = 20 + 228 menu + 20 gap) — keep those in sync with the sizes in
+  `DashboardShell`. Below `lg`: a fixed logo + hamburger header; the menu
+  is a left slide-in (`MobileNav`, a Radix dialog restyled as a side panel, 300ms ease-out in /
+  200ms ease-in out, backdrop timed to match via `DialogContent`'s `overlayClassName`), the page sits
+  straight on the tinted background, and the page itself shows the bell + avatar (a page built for
+  this shell must render them under `lg:hidden`, as `DashboardOverview` does). Search and the bell
+  are static — nothing behind them yet. Job card type is deliberately small (16/14/12px on phones,
+  18/16/14px from `md`).
+- Don't run `next build` while a `next dev` is running in the same app — both write
+  `.next/dev/types` and the build's type-check then fails on a half-written file.
+- **Mock data only** (`lib/mock/providerDashboard.ts`): the stats, 12 jobs, and the "John Doe"
+  user. Job rows are a view model — the backend's `Job` has no client name, location or job date, so
+  those need joins/extra endpoints before this can go live. The greeting follows local time
+  (`useGreeting`, neutral on the server to avoid hydration mismatch). "N active jobs" is computed
+  from the mock list (the mock said 3 while showing 4 cards). The pager (`Pagination`, `@repo/ui`)
+  is shown only below `lg`, as in the mocks; desktop relies on "View all".
+- `JobStatusBadge` (`@repo/ui`) fixes the status → label/colour mapping used everywhere: FUNDED
+  "Payment Secured" (green), PROVIDER_SELECTED "Provider Selected" and IN_PROGRESS "In Progress"
+  (orange), plus my choices for the rest (POSTED "Open", COMPLETED/PAID green, DISPUTED, CANCELLED).
+- **Profile** (`features/dashboard/components/profile/`, mock: `lib/mock/providerProfile.ts`): built from
+  the mock's first desktop variant (reputation card beside the avatar, About + Skills side by side,
+  full-width wallet card, bordered work-history list) and the mobile mock without its bottom nav. On
+  phones each history row becomes a label/value card and the pager appears (`lg:hidden`, as on the
+  overview); the "Profile" h1 is `sr-only` there. The wallet card is the shared
+  `components/WalletAddressCard` (also used on the wallet-connected screen). Choices to confirm: the
+  mocks disagree on the name (used the logged-in mock user, John Doe), had typos ("UDSC" → USDC) and
+  placeholder bio text (replaced); the headline "Plumber" and the 4.8 / 22 / 20 / 27 figures come from
+  the design and aren't derived from each other; the menu says "My Jobs" though the profile mocks say
+  "Jobs". Backend gaps: no headline field, and avatars need the file-upload flow. `StarRating`
+  (`@repo/ui`) is display-only and rounds to whole stars. COMPLETED is now green like PAID (the
+  work-history mock shows a green "Completed").
+- **My Jobs** (`features/dashboard/components/jobs/JobsView`, mock: `lib/mock/providerJobs.ts`, 50 jobs):
+  status tabs (an accessible tablist with arrow-key navigation) over the same `JobCard`s as the overview,
+  10 per page. Unlike the overview the pager shows at every size (this is the full list; the desktop mock
+  was cut off before it). Tab → status mapping is in `JOB_FILTERS`: In Progress = PROVIDER_SELECTED/
+  FUNDED/IN_PROGRESS, Completed = COMPLETED/PAID, and **On Hold = DISPUTED** — the backend has no "on
+  hold" status, so confirm that's the intent. "All" also includes open and cancelled jobs. The "My Jobs"
+  h1 is `sr-only` on phones (the mock starts at the tabs); the mobile mock's bottom nav is not built (the
+  slide-in menu is the mobile nav). Meta-row icons stay person/calendar/pin as on the overview (the
+  jobs mock used a pin for all three). Empty tabs show an `EmptyState`.
+- **Job detail** (`features/dashboard/components/jobs/{JobDetailView,JobTimeline,CompleteJobDialog}`, mock:
+  `lib/mock/providerJobDetail.ts`, looked up by the list's job id, unknown id → 404): only the desktop
+  mock was supplied, so tablet/mobile are my adaptation (timeline turns vertical below `md`, the two
+  columns stack). A round back button beside the logo (`HeaderBackButton`, driven by a route table in
+  that file, so future detail pages just add a row). The six-step timeline (Posted → Provider Selected
+  → Payment Secured → In Progress → Completed → Paid) marks steps reached up to the job's status; a
+  DISPUTED job shows through In Progress, CANCELLED only Posted. The mock printed a date under every step,
+  including unreached ones — here only reached steps carry one (dates are derived from the job date, the
+  backend has no per-step timestamps). Dates use the app's day-first style ("14 Aug"), not the mock's
+  "Apr 12". "Mark as Completed" (IN_PROGRESS only) opens the confirm dialog → simulated request → success
+  step; the page behind flips to Completed but nothing persists, so a reload restores the mock status.
+  The real call is `POST /jobs/{id}/complete`. Copy I wrote or corrected: the payment-box text for every
+  status other than in-progress/funded, "The client has been notified to review your work." (the mock's
+  success text was pasted from the wallet screen), and the mock's typos ("clients", "weeb deesigner").
+  The mock's menu shows a duplicate "Settings" — ignored. No "Start job" action for FUNDED jobs yet (not
+  designed; the backend has that transition).
+- **Wallet** (`features/dashboard/components/wallet/{WalletView,BalanceCard,RecentTransactions}`, mock:
+  `lib/mock/providerWallet.ts`): blue balance banner with the two summary tiles tucked under it (an
+  opaque `#f4f4ff` panel, since it overlaps the blue), the shared `WalletAddressCard`, recent
+  transactions. The eye hides only the balance. **Withdraw has no design** — it toasts "Withdrawals aren't
+  available yet". `View all` → `/wallet/transactions` (not built, 404s). Choices to confirm: the mock
+  showed the same tile twice, so I made them "Pending Earnings" and "Total Earned" (48,500 is invented),
+  with meaningful icons (clock / trend) instead of the mock's repeated person glyph; the mock's
+  transactions read like a client's wallet ("Payment to…", "Wallet Funded"), so I rewrote them for a
+  provider (received payments, a withdrawal, funding) keeping its colours (green in, red out) and arrow
+  directions; dates are absolute UTC ("20 Aug, 2026, 10:26 AM") rather than the mock's "Today/Yesterday"
+  (relative labels would mismatch between server and browser render); status is a pill on desktop and
+  plain grey text on phones, as in the mocks; "View all" is the wallet-connected screen's emerald.
+  The "Wallet" h1 is `sr-only` on phones. Real data would come from the backend's wallet balance and
+  transactions endpoints (not checked against the spec yet).
+- No auth guard yet (mock sign-in doesn't issue tokens). "Logout" just clears the auth store and
+  goes to `/auth/sign-in`. Avatars are initials — the mock's desktop avatar image wasn't supplied.
+
 ## Known issues
 
 - `packages/ui/src/assets/logos/*.svg` (~440KB each) and `images/auth-image.svg` (~1.8MB) are

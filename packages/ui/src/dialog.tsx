@@ -50,6 +50,8 @@ interface DialogContentProps
 	 * *desktop* half (`sm` and up, where this component's own mobile-only
 	 * CSS/behavior never actually renders). */
 	mobileSheet?: boolean;
+	/** Extra classes for the backdrop — e.g. to match a custom entrance's duration. */
+	overlayClassName?: string;
 }
 
 /** Centered, scroll-safe on short viewports, and capped to the viewport
@@ -61,12 +63,13 @@ function DialogContent({
 	children,
 	showCloseButton = true,
 	mobileSheet = false,
+	overlayClassName,
 	onOpenAutoFocus,
 	...props
 }: DialogContentProps) {
 	return (
 		<DialogPortal>
-			<DialogOverlay />
+			<DialogOverlay className={overlayClassName} />
 			<DialogPrimitive.Content
 				data-slot="dialog-content"
 				onOpenAutoFocus={(event) => {
