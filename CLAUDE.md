@@ -168,6 +168,15 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   `client` shows the provider version). Provider CTA → `/provider/onboarding`, client CTA
   ("Find a provider", a placeholder — only the provider version is designed) → `/providers`;
   neither destination exists yet. `signUpFlowStore` also carries the role chosen at sign-up.
+- **Client vs provider sign-up differ:** the client form (`role=client`) also asks for country +
+  state (shared `components/forms/LocationFields.tsx`, mock data in `lib/mock/locations.ts`) and its
+  footer reads "Looking for work? Join as a provider"; the provider form has neither (location is
+  collected in provider registration). The backend signup doesn't take a location, so the client's
+  country/state are collected but unused until there's somewhere to send them.
+- **`/auth/sign-in` is mock-only** (`useSignIn`): any valid email/password succeeds and routes to
+  `/` (no dashboards yet); `wrong@example.com` fails with a 401. "Forgot Password?" links to
+  `/auth/forgot-password` (not built). The real call and `remember me` handling notes are in the
+  hook. The sign-in mock has no "Sign up" link, so none was added.
 - Desktop content is anchored ~240px from the top (`AuthLayout`, matching every mock and the
   panel headline), not vertically centered; the offset shrinks on short windows so content
   isn't pushed off-screen. Tablet (`md`) stays centered, mobile is top-aligned.
@@ -184,8 +193,11 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   the mock used the same person glyph three times.
 - **Provider setup screens share `OnboardingLayout`** via the `app/provider/(setup)` route group
   (`onboarding` → `wallet`). From `lg` up the viewport is fixed: logo + hero + benefits stay put
-  and only the right column scrolls (its scrollbar sits at the window edge); the hero shrinks on
-  short windows. Below `lg` the page scrolls normally and the left side is hidden.
+  and the right column has a fixed height. Screens that put a `shrink-0` heading first and a
+  `min-h-0 flex-1 overflow-y-auto` region second (provider registration) keep the heading fixed
+  and scroll only the form; otherwise the column itself scrolls. Scrollbars are always hidden
+  (`.hide-scroll`); the hero shrinks on short windows. Below `lg` the page scrolls normally and
+  the left side is hidden.
 - **`TagInput` (`@repo/ui`) is an email-recipients-style field**: pills live *inside* the field,
   a suggestions dropdown opens on focus (filtered as you type, arrows + Enter or click to pick),
   and Enter/comma/blur commits typed text as a custom pill. In the registration form the
