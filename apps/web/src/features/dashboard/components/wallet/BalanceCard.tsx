@@ -15,7 +15,7 @@ function Tile({ icon: Icon, label, value }: { icon: LucideIcon; label: string; v
 			</span>
 			<div className="flex min-w-0 flex-col lg:gap-1">
 				<p className="text-c1 text-foreground lg:text-b3">{label}</p>
-				<p className="text-c1 font-medium text-foreground lg:text-s1 lg:font-medium">{value}</p>
+				<p className="text-c1 font-medium text-foreground lg:text-b1 lg:font-medium">{value}</p>
 			</div>
 		</div>
 	);
@@ -35,7 +35,7 @@ function BalanceCard() {
 			<div className="flex flex-col gap-5 bg-primary-500 px-5 pt-6 pb-10 text-white lg:flex-row lg:items-start lg:justify-between lg:px-7.5 lg:pt-7 lg:pb-9">
 				<div className="flex flex-col gap-2 lg:gap-3">
 					<div className="flex items-center justify-between gap-6 lg:justify-start lg:gap-10">
-						<p className="text-b1 lg:text-xl">Wallet Balance</p>
+						<p className="text-b1">Wallet Balance</p>
 						<button
 							type="button"
 							onClick={() => setHidden((value) => !value)}
@@ -46,7 +46,7 @@ function BalanceCard() {
 							{hidden ? <EyeOff className="size-5" aria-hidden="true" /> : <Eye className="size-5" aria-hidden="true" />}
 						</button>
 					</div>
-					<p className="text-h4 font-medium lg:text-h3 lg:font-medium" aria-live="polite">
+					<p className="text-h4 font-medium lg:text-h4 lg:font-medium" aria-live="polite">
 						{hidden ? `•••••• ${asset}` : formatMoney(MOCK_WALLET.balance, asset)}
 					</p>
 				</div>

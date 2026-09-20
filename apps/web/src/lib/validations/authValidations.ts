@@ -3,10 +3,10 @@ import { z } from "zod";
 // Mirrors the backend's own `POST /auth/signup` rules (confirmed against its
 // OpenAPI spec): password is min 8 chars with at least one uppercase letter,
 // one lowercase letter and one digit; names are 1–60 characters.
-const PASSWORD_MESSAGE =
+export const PASSWORD_MESSAGE =
 	"Use at least 8 characters, with an uppercase letter, a lowercase letter and a number";
 
-const isValidPassword = (value: string) =>
+export const isValidPassword = (value: string) =>
 	value.length >= 8 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value);
 
 export const signUpSchema = z.object({

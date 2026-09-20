@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { cn } from "@repo/ui/lib/utils";
 import { DASHBOARD_CONFIG, type DashboardRole, type NavItem } from "@/features/dashboard/config";
-import { useAuthStore } from "@/lib/stores/authStore";
-import { useMockSessionStore } from "@/lib/stores/mockSessionStore";
+import { useLogout } from "@/features/auth/hooks/useLogout";
 
 const ITEM =
 	"flex h-12 w-full items-center gap-3 rounded-lg px-4.5 text-b3 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary-300";
@@ -21,16 +20,9 @@ function isActive(pathname: string, href: string, home: string) {
  */
 function DashboardNav({ role, onNavigate }: { role: DashboardRole; onNavigate?: () => void }) {
 	const pathname = usePathname();
-	const router = useRouter();
-	const clearSession = useAuthStore((state) => state.clear);
 	const { home, menu, general } = DASHBOARD_CONFIG[role];
 
-	function logout() {
-		clearSession();
-		useMockSessionStore.getState().clear();
-		onNavigate?.();
-		router.push("/auth/sign-in");
-	}
+	const logout = useLogout(onNavigate);
 
 	function renderItems(items: NavItem[]) {
 		return items.map(({ label, href, icon: Icon }) => {

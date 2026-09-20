@@ -70,7 +70,7 @@ function FindProvidersView() {
 
 	return (
 		<div className="flex flex-col gap-6 lg:gap-8">
-			<h1 className="sr-only lg:not-sr-only lg:text-h2 lg:font-medium lg:text-foreground">Find Providers</h1>
+			<h1 className="sr-only lg:not-sr-only lg:text-h4 2xl:text-h3 lg:font-medium lg:text-foreground">Find Providers</h1>
 
 			<form
 				role="search"

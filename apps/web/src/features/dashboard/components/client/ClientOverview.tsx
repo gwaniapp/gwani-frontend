@@ -27,7 +27,7 @@ function ClientOverview() {
 		<div className="flex flex-col gap-6 lg:gap-8">
 			<div className="flex items-start justify-between gap-4">
 				<div className="flex flex-col gap-1.5 lg:gap-2">
-					<h1 className="text-xl font-medium text-foreground lg:text-h2">
+					<h1 className="text-xl font-medium text-foreground lg:text-h4 2xl:text-h3">
 						{greeting}, {MOCK_PROVIDER.firstName} {MOCK_PROVIDER.lastName}
 					</h1>
 					<p className="text-b3 text-neutral-500 lg:text-b1">Here&apos;s what&apos;s happening with your jobs today.</p>
@@ -45,7 +45,6 @@ function ClientOverview() {
 					label="Total Spent"
 					value={formatAmount(MOCK_CLIENT_STATS.totalSpent, MOCK_CLIENT_STATS.asset)}
 					icon={CircleDollarSign}
-					valueClassName="lg:text-h3 2xl:text-h2"
 				/>
 			</section>
 
@@ -61,7 +60,7 @@ function ClientOverview() {
 					</div>
 					<Link
 						href="/client/dashboard/jobs"
-						className="inline-flex items-center gap-2 text-b3 text-primary-500 outline-none hover:underline focus-visible:underline lg:text-s1 lg:font-normal"
+						className="inline-flex items-center gap-2 text-b3 text-primary-500 outline-none hover:underline focus-visible:underline lg:text-b1 lg:font-normal"
 					>
 						View all
 						<ArrowRight className="size-4 lg:size-5" aria-hidden="true" />

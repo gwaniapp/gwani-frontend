@@ -29,7 +29,7 @@ function ProviderCard({ provider }: { provider: DiscoverableProvider }) {
 					{initialsOf(provider.name)}
 				</span>
 				<div className="flex min-w-0 flex-col gap-1.5">
-					<h3 className="truncate text-xl font-medium text-foreground lg:text-2xl">{provider.name}</h3>
+					<h3 className="truncate text-xl font-medium text-foreground lg:text-xl">{provider.name}</h3>
 					<ul className="flex flex-col gap-1 text-b3 text-foreground lg:text-b1">
 						<li className="flex items-center gap-2.5">
 							<Briefcase className="size-4 shrink-0 text-neutral-600 lg:size-5" strokeWidth={1.5} aria-hidden="true" />
@@ -57,7 +57,7 @@ function ProviderCard({ provider }: { provider: DiscoverableProvider }) {
 				asChild
 				variant="outline"
 				size="large"
-				className="w-full border-primary-500 text-primary-500 hover:bg-primary-100/30 focus-visible:bg-primary-100/30 lg:h-15 lg:text-s1 lg:font-normal"
+				className="w-full border-primary-500 text-primary-500 hover:bg-primary-100/30 focus-visible:bg-primary-100/30 lg:h-12 lg:text-b1 lg:font-normal"
 			>
 				<Link href={`/client/dashboard/providers/${provider.id}`}>
 					View profile

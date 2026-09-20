@@ -21,7 +21,7 @@ function RecentTransactions() {
 	return (
 		<section aria-labelledby="recent-transactions" className="flex flex-col gap-2 lg:gap-4">
 			<div className="flex items-center justify-between gap-4 lg:px-7.5">
-				<h2 id="recent-transactions" className="text-b1 font-medium text-foreground lg:text-xl">
+				<h2 id="recent-transactions" className="text-b1 font-medium text-foreground lg:text-lg">
 					Recent Transactions
 				</h2>
 				<Link
@@ -48,7 +48,7 @@ function RecentTransactions() {
 								/>
 							</span>
 							<div className="flex min-w-0 flex-1 flex-col gap-0.5 lg:gap-1.5">
-								<p className="truncate text-b3 font-medium text-foreground lg:text-s1 lg:font-normal">{tx.title}</p>
+								<p className="truncate text-b3 font-medium text-foreground lg:text-b1 lg:font-normal">{tx.title}</p>
 								<p className="text-c1 text-neutral-500 lg:text-b1">
 									{formatDate(tx.date)}, {formatTime(tx.date)}
 								</p>
@@ -56,7 +56,7 @@ function RecentTransactions() {
 							<div className="flex shrink-0 flex-col items-end gap-1 lg:gap-1.5">
 								<p
 									className={cn(
-										"text-b3 font-medium lg:text-s1 lg:font-medium",
+										"text-b3 font-medium lg:text-b1 lg:font-medium",
 										incoming ? "text-[#0a7b4e]" : "text-danger-500",
 									)}
 								>

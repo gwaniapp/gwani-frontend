@@ -283,7 +283,16 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   this shell must render them under `lg:hidden`, as `DashboardOverview` does). Search and the bell
   are static — nothing behind them yet. Job card type is deliberately small (16/14/12px on phones,
   18/16/14px from `md`).
-- Don't run `next build` while a `next dev` is running in the same app — both write
+- **Type scale (dashboards and settings; the user found the mocks' sizes too big).** Content sizes were
+  scaled down for desktop and made to step up with the viewport, mobile untouched, layout untouched: page
+  titles `text-xl` → `lg:text-h4` (28px) → `2xl:text-h3` (32px) (was 40px); stat and balance values
+  `lg:text-h4 2xl:text-h3`; buttons, links, tabs, card labels and list rows `lg:text-b1` (16px, was the
+  18px `text-s1`); section headings stay `text-xl` (`lg:text-lg` inside the wallet); dialog titles `sm:text-xl`
+  (was 24px), the completion success heading `sm:text-h4`; profile name `lg:text-h5`; form fields on the
+  post-job form and in Settings 48px → 52px → 56px at `lg`/`xl`/`2xl`. Use these as the defaults for new
+  dashboard screens rather than copying the mock's pixel sizes. **Auth and provider-onboarding screens were
+  not touched** (they still use the mock's larger sizes).
+ — both write
   `.next/dev/types` and the build's type-check then fails on a half-written file.
 - **Mock data only** (`lib/mock/providerDashboard.ts`): the stats, 12 jobs, and the "John Doe"
   user. Job rows are a view model — the backend's `Job` has no client name, location or job date, so
@@ -326,11 +335,20 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   backend has no per-step timestamps). Dates use the app's day-first style ("14 Aug"), not the mock's
   "Apr 12". "Mark as Completed" (IN_PROGRESS only) opens the confirm dialog → simulated request → success
   step; the page behind flips to Completed but nothing persists, so a reload restores the mock status.
-  The real call is `POST /jobs/{id}/complete`. Copy I wrote or corrected: the payment-box text for every
+  The real call is `POST /jobs/{id}/mark-completed`. Copy I wrote or corrected: the payment-box text for every
   status other than in-progress/funded, "The client has been notified to review your work." (the mock's
   success text was pasted from the wallet screen), and the mock's typos ("clients", "weeb deesigner").
   The mock's menu shows a duplicate "Settings" — ignored. No "Start job" action for FUNDED jobs yet (not
   designed; the backend has that transition).
+  **Reject Job** (`RejectJobDialog`): an outline-red button under "Mark as Completed" while the job is
+  PROVIDER_SELECTED / FUNDED / IN_PROGRESS (the provider has it, hasn't finished it). Dialog = the completion
+  dialog's frame (`JobDialog` + `JobSummary` in `jobs/JobDialogParts`, shared) plus a required reason (10–500
+  characters). The mock has no success step, so submitting closes it, toasts, and the page shows the job as
+  Cancelled. The mock's subtitle ("mark it as completed") was pasted from the other dialog — reworded to "Let
+  the client know you can't take this job." **The backend has no provider-reject endpoint** (providers can
+  only `mark-completed`; `dispute` works only on COMPLETED jobs) — it needs e.g. `POST /jobs/{id}/reject
+  { reason }` and, if escrow is already funded, a refund to the client (`POST /jobs/{id}/escrow/refund`),
+  ending in CANCELLED.
 - **Wallet** (`features/dashboard/components/wallet/{WalletView,BalanceCard,RecentTransactions}`, mock:
   `lib/mock/providerWallet.ts`): blue balance banner with the two summary tiles tucked under it (an
   opaque `#f4f4ff` panel, since it overlaps the blue), the shared `WalletAddressCard`, recent
@@ -370,15 +388,18 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   "Go to dashboard" to signed-in visitors. Provider discovery is currently *inside* the client dashboard
   (behind login); a public `/providers` would belong on landing or as a public web route.
 
-
+## Client dashboard
 
 - Lives under `app/client/dashboard/*`, in the **same frame as the provider's** — `DashboardShell`
   takes a `role` ("provider" | "client") and the menus/home links come from
   `features/dashboard/config.ts` (`DASHBOARD_CONFIG`). New role-specific screens: add the page and,
   if it's in the menu, it's already linked (menu items with no page 404). Client menu: Overview, Find
   Providers, Jobs, Profile, Wallet · Settings, Help. Built so far: the overview
-  (`/client/dashboard`) and Find Providers (`/client/dashboard/providers`). Everything in the "Provider dashboard" notes about the frame (fixed floating
-  cards, spacing constants, mobile drawer, bell/avatar under `lg:hidden`) applies here too.
+  (`/client/dashboard`), Find Providers (`/client/dashboard/providers`), a provider's preview (`.../providers/[id]`), My Jobs
+  (`.../jobs`), Post a New Job (`.../jobs/new`) and Settings. Not built: the client's Wallet, Profile and
+  Help, and a job's detail (`.../jobs/[id]`, so the job cards' "View" 404s). Everything in the "Provider
+  dashboard" notes about the frame (fixed floating cards, spacing constants, mobile drawer, bell/avatar
+  under `lg:hidden`) applies here too.
 - **Overview** (`features/dashboard/components/client/{ClientOverview,ClientJobCard,QuickActions}`, mock:
   `lib/mock/clientDashboard.ts`): greeting, three stats (Active Jobs, Completed Jobs, Total Spent),
   Quick Actions (Post a New Job → `/client/dashboard/jobs/new`, Find Providers, Wallet — none built),
@@ -405,8 +426,61 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   Doe, Plumber, 4.0, 22 jobs"), so names/trades/figures are varied to make filters testable. Real data:
   `GET /providers/discover` (`items`) — its filter params and the missing category/trade title still
   need checking against the spec.
+- **Provider preview** (`.../providers/[id]`, `ProviderPreviewView`, mock: `lib/mock/providerPreview.ts`):
+  what a client sees before hiring. Built from the same shared parts as the provider's own Profile
+  (`features/dashboard/components/profile/ProfileParts`: identity, reputation, About, Skills — plus the
+  wallet card and `WorkHistory`), so the two can't drift; `ProfileView` was refactored onto them. Mobile
+  order differs from desktop (reputation first on phones; About + Skills above reputation + wallet on
+  desktop — DOM follows phone order, `lg:order-*` rearranges). "Back to providers" is an in-page
+  `BackHeader` link (a fixed parent, not `router.back()`, so it doesn't restore filters/page). "Hire
+  Provider" → `/client/dashboard/jobs/new?provider={id}`. Choices to confirm: the mobile mock drew work
+  history as job cards but the provider's own profile mock drew label/value cards — I reused the latter
+  everywhere; the mock showed 22 / 22 / 20 for related counts, here one figure (`jobs_completed`) feeds
+  all three; "View all" has no target yet (points back at this page); the wallet address is the sample key.
+- **My Jobs (client)** (`ClientJobsView`, mock: `MOCK_ALL_CLIENT_JOBS`, 50 jobs): the provider's jobs list and
+  this one share `jobs/JobsBoard` (tabs, pager, empty state) and differ only in the card and the header
+  action ("Post a New Job" opposite the title). Tab mapping is `JOB_FILTERS` (On Hold = DISPUTED). The
+  mock's highlighted "Find Providers" menu item on this screen was a mock slip — "Jobs" is highlighted.
+- **Post a New Job** (`PostJobForm`, validation `lib/validations/jobValidations.ts`): Service Provider
+  (native select over the 128 mock providers; preselected from `?provider=`, unknown ids ignored), Title,
+  Description, Amount + a fixed USDC box. **Backend shape:** `POST /jobs` takes only title (3–200),
+  description (10–5000) and `price_amount` (decimal string, ≤7 places) + asset — the provider is chosen
+  in a *second* call, `POST /jobs/{id}/select-provider` — so this form's first field is really step two.
+  **"Next" leads to a screen that isn't designed** (presumably review + fund escrow): a valid form just
+  toasts that; nothing is created.
+- **Settings / Account** (`features/settings/`, routes `/provider/dashboard/settings` and
+  `/client/dashboard/settings`, one `SettingsView role=…`; from the supplied mocks). **Two looks, same
+  forms:** below `lg` an "Account" page (avatar with camera badge, the shared wallet card, a menu list:
+  Personal Information · Provider Information (providers only) · Help & Support → Contact Support (a
+  `mailto:`) · Change Password / Logout / Delete Account in red) where every item opens a **sheet**; from
+  `lg` a sub-nav (Personal Information, Provider Information, Account Settings, Change Password, Delete
+  Account) with an **inline panel** for the first four — **Change Password is a normal page on desktop and a
+  drawer on mobile** (the user's call) — and only Delete Account opens as a modal. A sheet is the UI kit's `ResponsiveDialog` (`SettingsSheet`): a **vaul drawer below 640px, a modal
+  from there up** (so tablets get modals, as the user asked: "modals on desktop, drawers on mobile"). Forms
+  take `layout="panel" | "sheet"` (`formParts.tsx`: inline panels are 16px labels / 48px fields from `lg`, 52px
+  fields from `xl`, 18px labels / 56px fields only from `2xl`; sheets are 16px / 44px rounded; blue-outline vs
+  grey-outline Cancel). Panel Cancel restores the saved values; sheet Cancel
+  closes. Content unmounts on close, so each open starts from the saved values.
+  - Personal Information: first/last name editable, **email read-only** with a "contact support" note —
+    `PATCH /users/me` takes only the names and there's no email-change flow. Avatar: pick an image (PNG/
+    JPG/WebP ≤5 MB) to preview it locally; not uploaded (real: `POST /files/request-upload`, purpose
+    `AVATAR`); initials until then (the mock's 3D avatar isn't an asset).
+  - Provider Information: the registration form's fields prefilled (`MOCK_PROVIDER_INFO`), same schema and
+    the same backend gaps (skills must be catalog `skill_slugs`; no category/state/area fields).
+  - Change Password: **Old + New only, as designed (no confirm field)**. **The backend has no signed-in
+    change-password endpoint** (only the OTP `forgot-password` → `reset-password`) — needs a new endpoint or
+    to route through the OTP flow. Test hook: old password `Wrong123` fails.
+  - **Account Settings** (desktop sub-nav item; its content wasn't in the mocks): I put the email-
+    notification switches there (role-specific; localStorage via `notificationPrefsStore` — the backend has
+    no preferences endpoint). Confirm that's what it's for.
+  - **Delete Account** (no mock; follows the other sheets): a *request* — type DELETE, then "Request
+    deletion" — because the backend only has admin-side GDPR erasure. Logout uses the shared `useLogout`.
+  - Not in the mocks, so not built: any settings for the client's own profile beyond the above (the mock's
+    Provider Information item is providers-only; nothing client-specific was shown).
+- **Screens requested but not built (no design received):** the client's Wallet page and a "success
+  payments" modal (those messages arrived without their images). Ask again if still wanted.
 
-
+## Known issues
 
 - `packages/ui/src/assets/logos/*.svg` (~440KB each) and `images/auth-image.svg` (~1.8MB) are
   Figma exports — vector wrappers around embedded base64 PNGs, so they're heavy. The auth hero

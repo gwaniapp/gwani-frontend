@@ -32,13 +32,13 @@ function WalletAddressCard({ publicKey, ready = true, network = "Stellar", class
 			)}
 		>
 			<div className="flex items-start justify-between gap-3">
-				<p className="text-b1 text-foreground md:text-xl">Wallet address</p>
+				<p className="text-b1 text-foreground md:text-b1 2xl:text-lg">Wallet address</p>
 				{/* The design's own emerald — deeper and greyer than the stock success ramp. */}
 				<span className="rounded-full bg-success-100 px-4 py-1.5 text-b3 text-[#0a7b4e] md:py-1">Verified</span>
 			</div>
 			<div className="flex items-center gap-3">
 				<p
-					className="min-h-8 text-xl font-medium text-foreground md:text-2xl"
+					className="min-h-8 text-xl font-medium text-foreground md:text-xl"
 					aria-label={ready ? "Masked wallet address" : undefined}
 				>
 					{ready ? maskPublicKey(publicKey) : ""}

@@ -34,7 +34,7 @@ export interface WorkHistoryItem {
 	status: JobStatus;
 }
 
-const TITLES = [
+const PLUMBING_TITLES = [
 	"Kitchen Pipe Repair",
 	"Bathroom Leak Fix",
 	"Water Heater Installation",
@@ -45,17 +45,27 @@ const TITLES = [
 const CLIENTS = ["Janet Doe", "Amara Nwosu", "Kwame Mensah", "Priya Sharma", "Wanjiru Kamau", "Sipho Dlamini"];
 const AMOUNTS = [500, 320, 950, 180, 240, 410];
 
-/** 27 completed jobs, newest first, so the pager has something to page through. */
-export const MOCK_HISTORY: WorkHistoryItem[] = Array.from({ length: 27 }, (_, index) => {
-	const day = new Date(Date.UTC(2026, 3, 15));
-	day.setUTCDate(day.getUTCDate() - index * 6);
-	return {
-		id: `history-${index + 1}`,
-		title: TITLES[index % TITLES.length] as string,
-		clientName: CLIENTS[index % CLIENTS.length] as string,
-		amount: AMOUNTS[index % AMOUNTS.length] as number,
-		asset: "USDC",
-		date: day.toISOString().slice(0, 10),
-		status: "COMPLETED",
-	};
-});
+/**
+ * `count` completed jobs, newest first, for a provider's work history — a
+ * deterministic stand-in so the pager has something to page through. `seed`
+ * shifts which titles/clients/amounts come up so different providers differ.
+ */
+export function buildWorkHistory(count: number, titles: string[] = PLUMBING_TITLES, seed = 0): WorkHistoryItem[] {
+	return Array.from({ length: count }, (_, index) => {
+		const n = index + seed;
+		const day = new Date(Date.UTC(2026, 3, 15));
+		day.setUTCDate(day.getUTCDate() - index * 6);
+		return {
+			id: `history-${seed}-${index + 1}`,
+			title: titles[n % titles.length] as string,
+			clientName: CLIENTS[n % CLIENTS.length] as string,
+			amount: AMOUNTS[n % AMOUNTS.length] as number,
+			asset: "USDC",
+			date: day.toISOString().slice(0, 10),
+			status: "COMPLETED",
+		};
+	});
+}
+
+/** The provider's own history: 27 completed jobs. */
+export const MOCK_HISTORY: WorkHistoryItem[] = buildWorkHistory(27);

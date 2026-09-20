@@ -6,7 +6,7 @@ import { ArrowRight } from "lucide-react";
 import { JobStatusBadge } from "@repo/ui/job-status-badge";
 import { Pagination } from "@repo/ui/pagination";
 import { formatAmount, formatDate } from "@/lib/format";
-import { MOCK_HISTORY } from "@/lib/mock/providerProfile";
+import type { WorkHistoryItem } from "@/lib/mock/providerProfile";
 
 const PAGE_SIZE = 4;
 
@@ -16,12 +16,12 @@ const PAGE_SIZE = 4;
  * same markup does both — the labels and the phone-only client row are just
  * hidden at `lg`. The pager only shows below `lg`, as in the mocks.
  */
-function WorkHistory() {
+function WorkHistory({ jobs: allJobs, viewAllHref }: { jobs: WorkHistoryItem[]; viewAllHref: string }) {
 	const [page, setPage] = useState(1);
 
-	const pageCount = Math.ceil(MOCK_HISTORY.length / PAGE_SIZE);
+	const pageCount = Math.max(1, Math.ceil(allJobs.length / PAGE_SIZE));
 	const start = (page - 1) * PAGE_SIZE;
-	const jobs = MOCK_HISTORY.slice(start, start + PAGE_SIZE);
+	const jobs = allJobs.slice(start, start + PAGE_SIZE);
 
 	return (
 		<section aria-labelledby="work-history" className="flex flex-col gap-5">
@@ -30,11 +30,11 @@ function WorkHistory() {
 					<h2 id="work-history" className="text-xl font-medium text-foreground">
 						Work History
 					</h2>
-					<p className="text-b3 text-neutral-500 lg:text-b1">{MOCK_HISTORY.length} completed jobs</p>
+					<p className="text-b3 text-neutral-500 lg:text-b1">{allJobs.length} completed jobs</p>
 				</div>
 				<Link
-					href="/provider/dashboard/jobs"
-					className="inline-flex items-center gap-2 text-b3 text-primary-500 outline-none hover:underline focus-visible:underline lg:text-s1 lg:font-normal"
+					href={viewAllHref}
+					className="inline-flex items-center gap-2 text-b3 text-primary-500 outline-none hover:underline focus-visible:underline lg:text-b1 lg:font-normal"
 				>
 					View all
 					<ArrowRight className="size-4 lg:size-5" aria-hidden="true" />
@@ -85,7 +85,7 @@ function WorkHistory() {
 
 			<div className="flex flex-wrap items-center justify-between gap-3 pt-3 lg:hidden">
 				<p className="text-c1 text-neutral-500">
-					Showing {jobs.length} of {MOCK_HISTORY.length} entries
+					Showing {jobs.length} of {allJobs.length} entries
 				</p>
 				<Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
 			</div>

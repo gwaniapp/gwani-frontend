@@ -6,8 +6,12 @@ import { Button } from "@repo/ui/button";
 import { JobStatusBadge, type JobStatus } from "@repo/ui/job-status-badge";
 import { CompleteJobDialog, type CompleteStep } from "@/features/dashboard/components/jobs/CompleteJobDialog";
 import { JobTimeline } from "@/features/dashboard/components/jobs/JobTimeline";
+import { RejectJobDialog } from "@/features/dashboard/components/jobs/RejectJobDialog";
 import { formatAmount, formatDate } from "@/lib/format";
 import { buildTimeline, type JobDetail } from "@/lib/mock/providerJobDetail";
+
+/** Statuses where the provider has the job but hasn't finished it — the ones they can still turn down. */
+const REJECTABLE = new Set<JobStatus>(["PROVIDER_SELECTED", "FUNDED", "IN_PROGRESS"]);
 
 const NOT_SECURED = "The client hasn't secured payment yet. You'll be notified once it's locked in escrow.";
 const LOCKED = "The client's payment is locked and will be released when the job is completed and confirmed.";
@@ -27,7 +31,7 @@ const PAYMENT_NOTE: Record<JobStatus, string> = {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
 	return (
 		<div className="flex flex-col gap-1.5">
-			<dt className="text-b2 font-medium text-foreground lg:text-s1 lg:font-medium">{label}</dt>
+			<dt className="text-b2 font-medium text-foreground lg:text-b1 lg:font-medium">{label}</dt>
 			<dd className="text-b3 text-neutral-500 lg:text-b1">{children}</dd>
 		</div>
 	);
@@ -44,6 +48,7 @@ function JobDetailView({ job }: { job: JobDetail }) {
 	const [status, setStatus] = useState<JobStatus>(job.status);
 	const [open, setOpen] = useState(false);
 	const [step, setStep] = useState<CompleteStep>("confirm");
+	const [rejectOpen, setRejectOpen] = useState(false);
 
 	const timeline = status === job.status ? job.timeline : buildTimeline(status, job.date);
 
@@ -58,12 +63,12 @@ function JobDetailView({ job }: { job: JobDetail }) {
 				<JobStatusBadge status={status} className="self-start" />
 				<div className="flex items-end justify-between gap-4">
 					<div className="flex min-w-0 flex-col gap-1">
-						<p className="text-b3 text-neutral-600 lg:text-s1 lg:font-normal">Title</p>
-						<h1 className="text-xl font-medium text-foreground lg:text-h2 lg:font-medium">{job.title}</h1>
+						<p className="text-b3 text-neutral-600 lg:text-b1 lg:font-normal">Title</p>
+						<h1 className="text-xl font-medium text-foreground lg:text-h4 2xl:text-h3 lg:font-medium">{job.title}</h1>
 					</div>
 					<div className="flex shrink-0 flex-col items-end gap-1 text-right">
-						<p className="text-b3 text-foreground lg:text-s1 lg:font-normal">{formatDate(job.date)}</p>
-						<p className="text-xl font-medium text-foreground lg:text-h2 lg:font-medium">
+						<p className="text-b3 text-foreground lg:text-b1 lg:font-normal">{formatDate(job.date)}</p>
+						<p className="text-xl font-medium text-foreground lg:text-h4 2xl:text-h3 lg:font-medium">
 							{formatAmount(job.priceAmount, job.priceAsset)}
 						</p>
 					</div>
@@ -112,6 +117,18 @@ function JobDetailView({ job }: { job: JobDetail }) {
 						</Button>
 					)}
 
+					{REJECTABLE.has(status) && (
+						<Button
+							type="button"
+							variant="outline"
+							size="giant"
+							className="w-full rounded-lg border-danger-300 text-danger-600 hover:bg-danger-50 focus-visible:bg-danger-50"
+							onClick={() => setRejectOpen(true)}
+						>
+							Reject Job
+						</Button>
+					)}
+
 					<section aria-labelledby="client" className="flex flex-col gap-4">
 						<h2 id="client" className="text-s1 font-medium text-foreground">
 							Client
@@ -139,6 +156,12 @@ function JobDetailView({ job }: { job: JobDetail }) {
 				step={step}
 				onStepChange={setStep}
 				onCompleted={() => setStatus("COMPLETED")}
+			/>
+			<RejectJobDialog
+				job={{ ...job, status }}
+				open={rejectOpen}
+				onOpenChange={setRejectOpen}
+				onRejected={() => setStatus("CANCELLED")}
 			/>
 		</div>
 	);

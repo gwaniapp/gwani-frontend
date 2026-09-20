@@ -36,7 +36,7 @@ function ClientJobCard({ job }: { job: ClientJob }) {
 				</li>
 			</ul>
 
-			<p className="mt-1 text-b2 font-medium text-foreground [grid-area:amount] md:mt-0 md:text-s1 md:font-medium">
+			<p className="mt-1 text-b2 font-medium text-foreground [grid-area:amount] md:mt-0 md:text-b1 md:font-medium">
 				{formatAmount(job.priceAmount, job.priceAsset)}
 			</p>
 			<p className="text-b3 text-foreground [grid-area:posted] md:text-b1">Posted {formatDate(job.postedDate)}</p>
@@ -46,7 +46,7 @@ function ClientJobCard({ job }: { job: ClientJob }) {
 				className="mt-1 px-3 py-0.5 text-c2 [grid-area:status] self-start justify-self-start md:mt-0 md:self-center md:px-4 md:py-1 md:text-b3"
 			/>
 
-			<span className="inline-flex h-10 items-center justify-center gap-2 self-center rounded-lg border border-primary-500 px-4 text-b3 text-primary-500 transition-colors [grid-area:view] group-hover:bg-primary-100/30 md:h-15 md:px-7 md:text-s1 md:font-normal">
+			<span className="inline-flex h-10 items-center justify-center gap-2 self-center rounded-lg border border-primary-500 px-4 text-b3 text-primary-500 transition-colors [grid-area:view] group-hover:bg-primary-100/30 md:h-12 md:px-7 md:text-b1 md:font-normal">
 				View
 				<ArrowRight className="size-4 md:size-5" aria-hidden="true" />
 			</span>

@@ -1,113 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Briefcase } from "lucide-react";
-import { EmptyState } from "@repo/ui/empty-state";
-import { Pagination } from "@repo/ui/pagination";
-import { cn } from "@repo/ui/lib/utils";
 import { JobCard } from "@/features/dashboard/components/JobCard";
-import { JOB_FILTERS, MOCK_ALL_JOBS } from "@/lib/mock/providerJobs";
+import { JobsBoard } from "@/features/dashboard/components/jobs/JobsBoard";
+import { MOCK_ALL_JOBS } from "@/lib/mock/providerJobs";
 
-const PAGE_SIZE = 10;
-
-/**
- * The provider's full jobs list: status tabs, the same `JobCard`s as the
- * overview, and a pager (shown at every size here — this *is* the full list, so
- * unlike the overview there's no "View all" to lean on). Mock data
- * (`lib/mock/providerJobs.ts`). The "Jobs" title is visually hidden on phones,
- * where the mock starts at the tabs.
- */
+/** The provider's My Jobs page (mock data, `lib/mock/providerJobs.ts`) — the shared `JobsBoard` with provider job cards. */
 function JobsView() {
-	const [filterId, setFilterId] = useState(JOB_FILTERS[0]!.id);
-	const [page, setPage] = useState(1);
-	const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-	const filter = JOB_FILTERS.find((f) => f.id === filterId) ?? JOB_FILTERS[0]!;
-	const matching = filter.statuses ? MOCK_ALL_JOBS.filter((job) => filter.statuses!.includes(job.status)) : MOCK_ALL_JOBS;
-	const pageCount = Math.max(1, Math.ceil(matching.length / PAGE_SIZE));
-	const start = (page - 1) * PAGE_SIZE;
-	const jobs = matching.slice(start, start + PAGE_SIZE);
-
-	function select(id: string) {
-		setFilterId(id);
-		setPage(1);
-	}
-
-	// Roving tabindex: arrows/Home/End move between tabs, as a tablist should.
-	function onTabKeyDown(event: React.KeyboardEvent, index: number) {
-		const last = JOB_FILTERS.length - 1;
-		const next =
-			event.key === "ArrowRight" ? (index === last ? 0 : index + 1)
-			: event.key === "ArrowLeft" ? (index === 0 ? last : index - 1)
-			: event.key === "Home" ? 0
-			: event.key === "End" ? last
-			: null;
-		if (next === null) return;
-		event.preventDefault();
-		select(JOB_FILTERS[next]!.id);
-		tabRefs.current[next]?.focus();
-	}
-
-	return (
-		<div className="flex flex-col gap-6 lg:gap-8">
-			<h1 className="sr-only lg:not-sr-only lg:text-h2 lg:font-medium lg:text-foreground">My Jobs</h1>
-
-			<div
-				role="tablist"
-				aria-label="Filter jobs by status"
-				className="hide-scroll flex gap-1 overflow-x-auto rounded-xl border border-primary-100/60 bg-primary-100/20 p-1.5 lg:gap-6 lg:rounded-2xl lg:p-2"
-			>
-				{JOB_FILTERS.map((item, index) => {
-					const active = item.id === filterId;
-					return (
-						<button
-							key={item.id}
-							ref={(el) => {
-								tabRefs.current[index] = el;
-							}}
-							type="button"
-							role="tab"
-							id={`jobs-tab-${item.id}`}
-							aria-selected={active}
-							aria-controls="jobs-panel"
-							tabIndex={active ? 0 : -1}
-							onClick={() => select(item.id)}
-							onKeyDown={(event) => onTabKeyDown(event, index)}
-							className={cn(
-								"shrink-0 rounded-lg px-3.5 py-2 text-b3 whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary-300 max-lg:flex-auto lg:min-w-37.5 lg:px-6 lg:py-3.5 lg:text-s1 lg:font-normal",
-								active ? "bg-white text-primary-500 shadow-[0_2px_10px_rgb(0_0_0/0.05)]" : "text-neutral-500 hover:text-foreground",
-							)}
-						>
-							{item.label}
-						</button>
-					);
-				})}
-			</div>
-
-			<div id="jobs-panel" role="tabpanel" aria-labelledby={`jobs-tab-${filterId}`} className="flex flex-col gap-5">
-				{jobs.length === 0 ? (
-					<EmptyState icon={Briefcase} title="No jobs here yet" description="Jobs with this status will show up here." />
-				) : (
-					<ul className="flex flex-col gap-5">
-						{jobs.map((job) => (
-							<li key={job.id}>
-								<JobCard job={job} />
-							</li>
-						))}
-					</ul>
-				)}
-
-				{matching.length > 0 && (
-					<div className="flex flex-wrap items-center justify-between gap-3 pt-3">
-						<p className="text-c1 text-neutral-500 lg:text-b3">
-							Showing {jobs.length} of {matching.length} entries
-						</p>
-						<Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
-					</div>
-				)}
-			</div>
-		</div>
-	);
+	return <JobsBoard title="My Jobs" jobs={MOCK_ALL_JOBS} renderJob={(job) => <JobCard job={job} />} />;
 }
 
 export { JobsView };

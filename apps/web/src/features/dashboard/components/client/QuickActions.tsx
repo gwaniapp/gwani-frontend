@@ -16,7 +16,7 @@ function QuickActions() {
 			aria-labelledby="quick-actions"
 			className="flex flex-col gap-4 rounded-3xl bg-white p-5 shadow-[0_4px_24px_rgb(0_0_0/0.06)] lg:gap-6 lg:p-7.5"
 		>
-			<h2 id="quick-actions" className="text-b1 font-medium text-foreground lg:text-xl">
+			<h2 id="quick-actions" className="text-b1 font-medium text-foreground lg:text-lg">
 				Quick Actions
 			</h2>
 			<div className="grid gap-3 lg:grid-cols-3 lg:gap-7">
@@ -27,7 +27,7 @@ function QuickActions() {
 						variant={primary ? "primary" : "outline"}
 						size="large"
 						className={cn(
-							"w-full lg:h-15 lg:text-s1 lg:font-normal",
+							"w-full lg:h-12 lg:text-b1 lg:font-normal",
 							!primary && "border-primary-500 text-primary-500 hover:bg-primary-100/30 focus-visible:bg-primary-100/30",
 						)}
 					>
