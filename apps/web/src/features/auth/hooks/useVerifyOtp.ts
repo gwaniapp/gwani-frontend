@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "@repo/ui/sonner";
 import { getApiErrorMessage } from "@/lib/api/errorMessage";
 import { simulatedApiError, simulateRequest } from "@/lib/simulation";
+import { useMockSessionStore } from "@/lib/stores/mockSessionStore";
 import { useSignUpFlowStore } from "@/lib/stores/signUpFlowStore";
 import type { VerifyOtpValues } from "@/lib/validations/authValidations";
 
@@ -28,6 +29,8 @@ function useVerifyOtp() {
 			// Read before resetting; a direct visit (no stored role) previews the provider version.
 			const role = useSignUpFlowStore.getState().role ?? "PROVIDER";
 			resetFlow();
+			// Mock session only — with real auth the verify response's tokens/user are the session.
+			useMockSessionStore.getState().setRole(role);
 			router.push(`/auth/verified?role=${role.toLowerCase()}`);
 		},
 		onError: (error) => {

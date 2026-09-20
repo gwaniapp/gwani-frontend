@@ -65,10 +65,11 @@ Turborepo + pnpm, same shape as peakline:
 
 ```
 apps/
-  web/        Next.js 16 app (App Router) — the only app scaffolded so far.
-              Start here; add apps/landing or apps/admin later only once a
-              real reason exists, same "one app, not one-per-surface" default
-              peakline settled on.
+  web/        Next.js 16 app (App Router) — the signed-in product (auth, both
+              dashboards). The only app with code so far.
+  landing/    the public marketing site — folder exists, NOT scaffolded yet
+              (no package.json). Don't put a landing page in apps/web.
+  admin/      the staff app — folder exists, NOT scaffolded yet.
 packages/
   ui/                 shared design system (@repo/ui) — components, tokens
   eslint-config/
@@ -155,7 +156,7 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   it. Built so far: `/auth/sign-up` (role selection) and `/auth/sign-up/details?role=client|
   provider` (the form; a missing/unknown role redirects back to role selection). Sign-up
   posts `POST /auth/signup` (`useSignUp`), stores the email in `signUpFlowStore`
-  (sessionStorage) and pushes to `/auth/verify-otp`. `/auth/sign-in` is linked but not built.
+  (sessionStorage) and pushes to `/auth/verify-otp`. `/auth/sign-in` is built (below).
   The Terms/Privacy text in the form is styled like links but isn't linked (no such pages yet).
 - **The whole auth flow runs on mock data for now — the user wants no backend calls until the
   UI is finished.** `MOCK_AUTH` in `lib/simulation.ts` (currently `true`) makes `useSignUp`
@@ -166,15 +167,16 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   real signup call was live for a while and returned an internal error from the backend.
 - `/auth/verified?role=client|provider` is the success screen after OTP (anything but
   `client` shows the provider version). Provider CTA → `/provider/onboarding`, client CTA
-  ("Find a provider", a placeholder — only the provider version is designed) → `/providers`;
-  neither destination exists yet. `signUpFlowStore` also carries the role chosen at sign-up.
+  ("Find a provider") → `/client/dashboard/providers` (not built yet);
+  `/provider/onboarding` exists. `signUpFlowStore` also carries the role chosen at sign-up.
 - **Client vs provider sign-up differ:** the client form (`role=client`) also asks for country +
   state (shared `components/forms/LocationFields.tsx`, mock data in `lib/mock/locations.ts`) and its
   footer reads "Looking for work? Join as a provider"; the provider form has neither (location is
   collected in provider registration). The backend signup doesn't take a location, so the client's
   country/state are collected but unused until there's somewhere to send them.
 - **`/auth/sign-in` is mock-only** (`useSignIn`): any valid email/password succeeds and routes to
-  `/` (no dashboards yet); `wrong@example.com` fails with a 401. "Forgot Password?" links to
+  the role's dashboard (see "App routing"); `wrong@example.com` fails with a 401, and an address
+  starting with `client` signs in as a client (anything else: provider). "Forgot Password?" links to
   `/auth/forgot-password` (not built). The real call and `remember me` handling notes are in the
   hook. The sign-in mock has no "Sign up" link, so none was added.
 - Desktop content is anchored ~240px from the top (`AuthLayout`, matching every mock and the
@@ -346,7 +348,65 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
 - No auth guard yet (mock sign-in doesn't issue tokens). "Logout" just clears the auth store and
   goes to `/auth/sign-in`. Avatars are initials — the mock's desktop avatar image wasn't supplied.
 
-## Known issues
+## App routing
+
+- **Role-prefixed trees, not a shared URL:** `/provider/dashboard/*` and `/client/dashboard/*`
+  (recommendation agreed with the user). A role is fixed at signup, the two dashboards' pages differ a
+  lot, and a role in the URL means no wrong-dashboard flash and a simple per-prefix guard. Both use one
+  frame (`DashboardShell role=…`, `features/dashboard/config.ts`).
+- **`/` in apps/web is a router, not a page** (`features/auth/components/RoleRedirect`): signed in →
+  `dashboardHomeFor(role)`, otherwise → `/auth/sign-in`. The public site is `apps/landing`. ADMIN has no
+  dashboard here (its own app), so it falls back to sign-in.
+- **The role comes from `lib/stores/mockSessionStore`** (localStorage, role only) because mock sign-in
+  and OTP issue no tokens. Mock sign-in sets it from the email (`client…` → client), OTP verify from the
+  role chosen at sign-up, dashboard Logout clears it. **When auth goes live, delete the store and read
+  `user.role` from the login/verify response or `useSession`** (call sites are commented).
+- **No route guards yet, deliberately** — the dashboards are open so screens can be previewed by URL.
+  Add them with real auth: a role check per tree (provider on `/client/*` → redirected to their own
+  dashboard) needs the role on the server (JWT claim or a small cookie) to avoid a client-side flash.
+- `robots.ts` blocks crawlers from `/api/`, `/client/` and `/provider/` (landing is what gets indexed).
+- Open questions: if landing lives on another (sub)domain, links from it to `/auth/*` should use an env
+  var for web's origin, and a parent-domain session cookie is only needed if landing wants to show
+  "Go to dashboard" to signed-in visitors. Provider discovery is currently *inside* the client dashboard
+  (behind login); a public `/providers` would belong on landing or as a public web route.
+
+
+
+- Lives under `app/client/dashboard/*`, in the **same frame as the provider's** — `DashboardShell`
+  takes a `role` ("provider" | "client") and the menus/home links come from
+  `features/dashboard/config.ts` (`DASHBOARD_CONFIG`). New role-specific screens: add the page and,
+  if it's in the menu, it's already linked (menu items with no page 404). Client menu: Overview, Find
+  Providers, Jobs, Profile, Wallet · Settings, Help. Built so far: the overview
+  (`/client/dashboard`) and Find Providers (`/client/dashboard/providers`). Everything in the "Provider dashboard" notes about the frame (fixed floating
+  cards, spacing constants, mobile drawer, bell/avatar under `lg:hidden`) applies here too.
+- **Overview** (`features/dashboard/components/client/{ClientOverview,ClientJobCard,QuickActions}`, mock:
+  `lib/mock/clientDashboard.ts`): greeting, three stats (Active Jobs, Completed Jobs, Total Spent),
+  Quick Actions (Post a New Job → `/client/dashboard/jobs/new`, Find Providers, Wallet — none built),
+  and the active jobs. The stat row is 3-up from `xl`; the Total Spent value drops a size below `2xl`
+  so "25,000 USDC" fits (`StatCard`'s `valueClassName`). The signed-in name is still the one mock user
+  ("John Doe", from `MOCK_PROVIDER`) — there's no separate client user mock yet.
+- Copy/data choices to confirm: the mocks disagree on the active count (25 / 3 / four cards shown), so
+  it's computed from the mock jobs (4) and the subtitle says "your jobs" (desktop) — the mobile mock's
+  wording was used for both; Quick Action icons are meaningful ones (briefcase/person/wallet) rather
+  than the mobile mock's link/QR glyphs; only *active* jobs are listed here, "View all" is the full list;
+  the mock's first card is highlighted (a hover state) — reproduced as hover only. The provider's name
+  and category name on a job card are joins the backend's `Job` doesn't give directly.
+
+- **Find Providers** (`features/dashboard/components/client/providers/{FindProvidersView,ProviderCard,FilterPill}`,
+  mock: `lib/mock/providers.ts`, 128 generated providers): a search box (live filter on name, trade and
+  location), category / location / rating chips, a 3-up card grid (2 on tablet, 1 on phones), 6 per page
+  with the pager at every size. The chips are **native `<select>`s** laid invisibly over a styled pill
+  (`FilterPill`) — the platform picker on phones, accessible for free; "All Categories" keeps its
+  highlighted look even when unset, as in the mock. The results count is visible on phones only (the
+  mock's desktop omits it) and `aria-live` everywhere. Search button is desktop-only (mobile mock has
+  none; the list filters as you type anyway). **The trailing "Filter" chip has no design** — it toasts
+  "More filters are coming soon". Avatars are initials (the mock's photo isn't an asset). "View profile"
+  → `/client/dashboard/providers/{id}` (not built). The mocks repeat one placeholder provider ("Jane
+  Doe, Plumber, 4.0, 22 jobs"), so names/trades/figures are varied to make filters testable. Real data:
+  `GET /providers/discover` (`items`) — its filter params and the missing category/trade title still
+  need checking against the spec.
+
+
 
 - `packages/ui/src/assets/logos/*.svg` (~440KB each) and `images/auth-image.svg` (~1.8MB) are
   Figma exports — vector wrappers around embedded base64 PNGs, so they're heavy. The auth hero

@@ -7,7 +7,7 @@ import type { SignUpRole } from "@/lib/api/types";
 // is a placeholder. Neither destination screen exists yet.
 const NEXT_STEP: Record<SignUpRole, { label: string; href: string }> = {
 	PROVIDER: { label: "Create my provider profile", href: "/provider/onboarding" },
-	CLIENT: { label: "Find a provider", href: "/providers" },
+	CLIENT: { label: "Find a provider", href: "/client/dashboard/providers" },
 };
 
 /** Shown once the email is verified — one action, chosen by the account's role. */

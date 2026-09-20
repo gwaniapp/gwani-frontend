@@ -5,6 +5,7 @@ import { Menu } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@repo/ui/dialog";
 import { Logo } from "@repo/ui/logo";
 import { DashboardNav } from "@/features/dashboard/components/DashboardNav";
+import type { DashboardRole } from "@/features/dashboard/config";
 
 // The panel and its backdrop share these so they move as one: a slower,
 // eased-out entrance and a quicker exit (the default 150ms read as a snap).
@@ -12,7 +13,7 @@ const ENTER = "data-[state=open]:duration-300 data-[state=open]:ease-out";
 const EXIT = "data-[state=closed]:duration-200 data-[state=closed]:ease-in";
 
 /** Hamburger + slide-in menu, for screens too narrow for the sidebar. */
-function MobileNav() {
+function MobileNav({ role }: { role: DashboardRole }) {
 	const [open, setOpen] = useState(false);
 
 	return (
@@ -38,7 +39,7 @@ function MobileNav() {
 			>
 				<DialogTitle className="sr-only">Menu</DialogTitle>
 				<Logo size="lg" className="mb-8 h-9 md:h-9" />
-				<DashboardNav onNavigate={() => setOpen(false)} />
+				<DashboardNav role={role} onNavigate={() => setOpen(false)} />
 			</DialogContent>
 		</Dialog>
 	);

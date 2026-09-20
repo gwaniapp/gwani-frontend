@@ -1,5 +1,5 @@
 import { DashboardShell } from "@/features/dashboard/components/DashboardShell";
 
 export default function ProviderDashboardLayout({ children }: { children: React.ReactNode }) {
-	return <DashboardShell>{children}</DashboardShell>;
+	return <DashboardShell role="provider">{children}</DashboardShell>;
 }

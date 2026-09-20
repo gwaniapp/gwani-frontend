@@ -2,55 +2,39 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Briefcase, Headset, LayoutGrid, LogOut, Settings, User, Wallet, type LucideIcon } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { cn } from "@repo/ui/lib/utils";
+import { DASHBOARD_CONFIG, type DashboardRole, type NavItem } from "@/features/dashboard/config";
 import { useAuthStore } from "@/lib/stores/authStore";
+import { useMockSessionStore } from "@/lib/stores/mockSessionStore";
 
-interface NavItem {
-	label: string;
-	href: string;
-	icon: LucideIcon;
-}
+const ITEM =
+	"flex h-12 w-full items-center gap-3 rounded-lg px-4.5 text-b3 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary-300";
 
-const DASHBOARD_HOME = "/provider/dashboard";
-
-// Everything but Overview lives at a screen that isn't designed yet.
-const MENU: NavItem[] = [
-	{ label: "Overview", href: DASHBOARD_HOME, icon: LayoutGrid },
-	{ label: "My Jobs", href: `${DASHBOARD_HOME}/jobs`, icon: Briefcase },
-	{ label: "Profile", href: `${DASHBOARD_HOME}/profile`, icon: User },
-	{ label: "Wallet", href: `${DASHBOARD_HOME}/wallet`, icon: Wallet },
-];
-
-const GENERAL: NavItem[] = [
-	{ label: "Settings", href: `${DASHBOARD_HOME}/settings`, icon: Settings },
-	{ label: "Help", href: `${DASHBOARD_HOME}/help`, icon: Headset },
-];
-
-const ITEM = "flex h-12 w-full items-center gap-3 rounded-lg px-4.5 text-b3 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary-300";
-
-function isActive(pathname: string, href: string) {
-	return href === DASHBOARD_HOME ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+function isActive(pathname: string, href: string, home: string) {
+	return href === home ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
 /**
- * The dashboard menu — the sidebar on desktop and the contents of the slide-in
- * menu on mobile (`onNavigate` lets that one close itself).
+ * The dashboard menu for a role — the sidebar on desktop and the contents of
+ * the slide-in menu on mobile (`onNavigate` lets that one close itself).
  */
-function DashboardNav({ onNavigate }: { onNavigate?: () => void }) {
+function DashboardNav({ role, onNavigate }: { role: DashboardRole; onNavigate?: () => void }) {
 	const pathname = usePathname();
 	const router = useRouter();
 	const clearSession = useAuthStore((state) => state.clear);
+	const { home, menu, general } = DASHBOARD_CONFIG[role];
 
 	function logout() {
 		clearSession();
+		useMockSessionStore.getState().clear();
 		onNavigate?.();
 		router.push("/auth/sign-in");
 	}
 
 	function renderItems(items: NavItem[]) {
 		return items.map(({ label, href, icon: Icon }) => {
-			const active = isActive(pathname, href);
+			const active = isActive(pathname, href, home);
 			return (
 				<li key={href}>
 					<Link
@@ -70,17 +54,13 @@ function DashboardNav({ onNavigate }: { onNavigate?: () => void }) {
 	return (
 		<nav aria-label="Dashboard" className="flex flex-col">
 			<p className="text-b1 text-foreground">Menu</p>
-			<ul className="mt-6 flex flex-col gap-2.5">{renderItems(MENU)}</ul>
+			<ul className="mt-6 flex flex-col gap-2.5">{renderItems(menu)}</ul>
 
 			<p className="mt-12 text-b1 text-foreground">General</p>
 			<ul className="mt-6 flex flex-col gap-2.5">
-				{renderItems(GENERAL)}
+				{renderItems(general)}
 				<li>
-					<button
-						type="button"
-						onClick={logout}
-						className={cn(ITEM, "text-danger-600 hover:bg-danger-50")}
-					>
+					<button type="button" onClick={logout} className={cn(ITEM, "text-danger-600 hover:bg-danger-50")}>
 						<LogOut className="size-4" aria-hidden="true" />
 						Logout
 					</button>
@@ -90,4 +70,4 @@ function DashboardNav({ onNavigate }: { onNavigate?: () => void }) {
 	);
 }
 
-export { DashboardNav, DASHBOARD_HOME };
+export { DashboardNav };
