@@ -7,7 +7,7 @@ export const providerRegistrationSchema = z.object({
 		.min(10, "Tell us a bit more about yourself (at least 10 characters)")
 		.max(500, "Keep it to 500 characters or fewer"),
 	category: z.string().min(1, "Select a category"),
-	skills: z.array(z.string()).min(1, "Add at least one skill or service"),
+	skills: z.array(z.string()).min(1, "Add at least one skill or service").max(20, "You can add up to 20 skills"),
 	country: z.string().min(1, "Select your country"),
 	state: z.string().trim().min(1, "Select your state or city"),
 	area: z.string().trim().optional(),

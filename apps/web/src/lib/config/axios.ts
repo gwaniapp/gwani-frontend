@@ -91,9 +91,12 @@ const attachApiLogging = (instance: AxiosInstance, label: string) => {
 
 			// 4xx are expected, user-facing failures — log those as a warning so
 			// they don't trip Next's dev-mode Console Error overlay on every
-			// wrong-password attempt. Real bugs (5xx, timeouts, network errors)
-			// still get the full console.error treatment.
-			const isClientError = typeof status === "number" && status >= 400 && status < 500;
+			// wrong-password attempt. So are 502/503/504: the hosting gateway
+			// couldn't reach the backend (down, restarting, cold start), which
+			// isn't an app bug and is already handled by each caller. Real bugs
+			// (other 5xx, timeouts, network errors) still get console.error.
+			const isGatewayError = status === 502 || status === 503 || status === 504;
+			const isClientError = (typeof status === "number" && status >= 400 && status < 500) || isGatewayError;
 			const log = isClientError ? console.warn : console.error;
 
 			console.groupCollapsed(

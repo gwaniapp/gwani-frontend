@@ -3,6 +3,10 @@ import { FindProvidersView } from "@/features/dashboard/components/client/provid
 
 export const metadata: Metadata = { title: "Find Providers" };
 
-export default function FindProvidersPage() {
-	return <FindProvidersView />;
+/** `?q=` pre-fills the search (the header search box hands its text over this way). */
+export default async function FindProvidersPage({ searchParams }: { searchParams: Promise<{ q?: string | string[] }> }) {
+	const { q } = await searchParams;
+	const initialQuery = (Array.isArray(q) ? q[0] : q) ?? "";
+	// Keyed so a new `?q=` while already on this page starts a fresh search.
+	return <FindProvidersView key={initialQuery} initialQuery={initialQuery} />;
 }

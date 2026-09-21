@@ -1,51 +1,74 @@
+"use client";
+
 import Link from "next/link";
+import { isAxiosError } from "axios";
+import { notFound } from "next/navigation";
+import { Button } from "@repo/ui/button";
+import { Skeleton } from "@repo/ui/skeleton";
+import { QueryError } from "@/components/QueryState";
 import { WalletAddressCard } from "@/components/WalletAddressCard";
 import { BackHeader } from "@/features/dashboard/components/BackHeader";
 import { AboutCard, ProfileIdentity, ReputationCard, SkillsCard } from "@/features/dashboard/components/profile/ProfileParts";
-import { WorkHistory } from "@/features/dashboard/components/profile/WorkHistory";
-import { Button } from "@repo/ui/button";
-import type { ProviderPreview } from "@/lib/mock/providerPreview";
+import { useProvider } from "@/features/providers/hooks/useProviders";
+import { providerHeadline, providerLocation, providerName } from "@/lib/providers";
 
 /**
- * A provider as a client sees them before hiring: the same building blocks as
- * the provider's own profile, in the client mock's order — on phones the
- * reputation card comes first, on desktop About and Skills sit above the
- * reputation and wallet pair (the DOM follows the phone order; `lg:order-*`
- * rearranges it). "Hire Provider" goes to the Post a New Job form with this
- * provider preselected. Work history here is the shared `WorkHistory` (label/
- * value cards on phones) — the mobile mock drew these as job cards instead.
+ * A provider as a client sees them before hiring (`GET /providers/{id}`): the
+ * same building blocks as the provider's own profile — reputation, bio,
+ * skills, jobs-completed count and the (public) wallet address; there's no
+ * public work history. "Hire Provider" opens Post a New Job with this
+ * provider preselected.
  */
-function ProviderPreviewView({ provider }: { provider: ProviderPreview }) {
+function ProviderPreviewView({ id }: { id: string }) {
+	const provider = useProvider(id);
+
+	if (provider.isPending) {
+		return (
+			<div className="flex flex-col gap-6 lg:gap-8" aria-busy="true" aria-label="Loading provider">
+				<BackHeader href="/client/dashboard/providers" label="Back to providers" />
+				<Skeleton className="h-48 w-full rounded-3xl" />
+				<Skeleton className="h-60 w-full rounded-3xl" />
+			</div>
+		);
+	}
+	if (provider.isError) {
+		if (isAxiosError(provider.error) && (provider.error.response?.status === 404 || provider.error.response?.status === 400)) notFound();
+		return (
+			<div className="flex flex-col gap-6 lg:gap-8">
+				<BackHeader href="/client/dashboard/providers" label="Back to providers" />
+				<QueryError message="We couldn't load this provider." onRetry={() => void provider.refetch()} />
+			</div>
+		);
+	}
+
+	const p = provider.data;
+	const rating = Number(p.reputation) || 0;
+
 	return (
 		<div className="flex flex-col gap-6 lg:gap-8">
 			<BackHeader href="/client/dashboard/providers" label="Back to providers" />
 
-			<h1 className="sr-only">{provider.name}</h1>
-			<ProfileIdentity
-				name={provider.name}
-				headline={provider.headline}
-				location={provider.location}
-				rating={provider.rating}
-				jobsDone={provider.jobsDone}
-				walletVerified={provider.walletVerified}
-			/>
+			<h1 className="sr-only">{providerName(p)}</h1>
+			<section aria-label="Overview" className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+				<ProfileIdentity
+					name={providerName(p)}
+					headline={providerHeadline(p)}
+					location={providerLocation(p)}
+					rating={rating}
+					jobsDone={p.jobs_completed}
+				/>
+				<ReputationCard rating={rating} jobsDone={p.jobs_completed} completedJobs={p.jobs_completed} className="lg:w-72 lg:shrink-0" />
+			</section>
 
 			<div className="grid gap-5 lg:grid-cols-2 lg:gap-7.5">
-				<ReputationCard
-					rating={provider.rating}
-					jobsDone={provider.jobsDone}
-					completedJobs={provider.jobsDone}
-					className="lg:order-3 lg:justify-center lg:rounded-3xl"
-				/>
-				<AboutCard about={provider.about} />
-				<SkillsCard skills={provider.skills} />
-				<WalletAddressCard publicKey={provider.walletPublicKey} className="lg:order-4 lg:justify-center" />
+				<AboutCard about={p.bio ?? ""} />
+				<SkillsCard skills={(p.skills ?? []).map((skill) => skill.name)} />
 			</div>
 
-			<WorkHistory jobs={provider.history} viewAllHref={`/client/dashboard/providers/${provider.id}`} />
+			{p.wallet_address && <WalletAddressCard publicKey={p.wallet_address} />}
 
 			<Button asChild size="giant" className="w-full self-center rounded-lg lg:max-w-150">
-				<Link href={`/client/dashboard/jobs/new?provider=${provider.id}`}>Hire Provider</Link>
+				<Link href={`/client/dashboard/jobs/new?provider=${p.id}`}>Hire Provider</Link>
 			</Button>
 		</div>
 	);

@@ -4,5 +4,5 @@ import { WalletView } from "@/features/dashboard/components/wallet/WalletView";
 export const metadata: Metadata = { title: "Wallet" };
 
 export default function ProviderWalletPage() {
-	return <WalletView />;
+	return <WalletView role="provider" />;
 }

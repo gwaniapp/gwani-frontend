@@ -7,6 +7,8 @@ import { Undo2 } from "lucide-react";
 // Pages that sit one level below a list and get a back button beside the logo.
 const BACK_TARGETS: Array<{ match: RegExp; href: string; label: string }> = [
 	{ match: /^\/provider\/dashboard\/jobs\/[^/]+$/, href: "/provider/dashboard/jobs", label: "Back to jobs" },
+	// `/jobs/new` has its own in-page back header.
+	{ match: /^\/client\/dashboard\/jobs\/(?!new$)[^/]+$/, href: "/client/dashboard/jobs", label: "Back to jobs" },
 ];
 
 /** The round back button next to the logo on detail pages (nothing elsewhere). */

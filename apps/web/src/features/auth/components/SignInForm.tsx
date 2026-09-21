@@ -114,6 +114,13 @@ function SignInForm() {
 					</Button>
 				</form>
 			</Form>
+
+			<p className="text-center text-b3 text-foreground md:text-b1">
+				Don&apos;t have an account?{" "}
+				<Link href="/auth/sign-up" className="font-medium text-primary-500 underline-offset-4 hover:underline">
+					Sign up
+				</Link>
+			</p>
 		</>
 	);
 }

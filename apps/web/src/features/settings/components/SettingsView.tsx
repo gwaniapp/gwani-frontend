@@ -15,7 +15,7 @@ import { ProviderInfoForm } from "@/features/settings/components/ProviderInfoFor
 import { SettingsSheet } from "@/features/settings/components/SettingsSheet";
 import { DASHBOARD_CONFIG, type DashboardRole } from "@/features/dashboard/config";
 import type { PanelId, SheetId } from "@/features/settings/types";
-import { SAMPLE_PUBLIC_KEY } from "@/lib/wallet";
+import { useWallet } from "@/features/provider/hooks/useWallet";
 
 const SHEETS: Record<SheetId, { title: string; description: string; danger?: boolean }> = {
 	personal: { title: "Personal Information", description: "Edit your name." },
@@ -35,12 +35,14 @@ const NAV: Array<{ label: string; providerOnly?: boolean; danger?: boolean } & (
 
 /** Avatar with its camera badge, and the wallet card under it — the top of the mobile page and of the desktop Personal/Provider panels. */
 function AccountHeader({ centered }: { centered?: boolean }) {
+	const wallet = useWallet();
+
 	return (
 		<div className="flex flex-col gap-6 lg:gap-8">
 			<div className={cn("flex", centered && "justify-center lg:justify-start")}>
 				<AvatarUpload />
 			</div>
-			<WalletAddressCard publicKey={SAMPLE_PUBLIC_KEY} />
+			{wallet.data ? <WalletAddressCard publicKey={wallet.data.public_key} /> : wallet.isPending ? <WalletAddressCard publicKey="" ready={false} /> : null}
 		</div>
 	);
 }

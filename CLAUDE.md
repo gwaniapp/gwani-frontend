@@ -59,6 +59,56 @@ An earlier version of this file (before the real backend's existence came up) pl
 from-scratch Prisma+Postgres backend built into `apps/web`, with our own SEP-10 wallet-based
 auth. **That plan is superseded and was never built** — everything above replaces it.
 
+## Backend integration status — everything is connected
+
+On 2026-09-20 the user lifted "mock-first" and asked to connect the backend; then said to do **all of it at
+once, not step by step**. **No screen runs on mock data any more** (`lib/mock/` keeps only `locations` and
+`providerOptions`, which are UI helpers: country/state lists and the category grouping). What each area
+does and where the backend falls short is under its own section; the short version:
+
+- **Auth, identity, guards, Settings name/profile** — real (see "Auth screens", "App routing").
+- **Provider onboarding, wallet (custodial + Freighter link), Settings → Provider Information** — real.
+- **Provider dashboard:** overview, jobs, job detail (+ Mark as Completed, dispute), profile, wallet — real.
+- **Client:** overview, Find Providers (`/providers/discover`), provider profile (`/providers/{id}`), My Jobs, Post a
+  New Job (`POST /jobs` → `select-provider`), job detail (Fund escrow, Release payment, dispute), wallet — real.
+- **Avatar upload** (`/files/request-upload` → PUT to storage) — coded, but **the live backend has no such route**
+  (`POST /api/v1/files/request-upload` → 404 although the spec documents it), so an upload shows "Profile photos aren't
+  available on the server yet". It works unchanged once the route exists (the photo is then remembered per browser only).
+- **No backend endpoint, so not real (and hidden or honest about it):** a provider *rejecting* a job (the dialog was
+  removed; needs e.g. `POST /jobs/{id}/reject`), changing a password while signed in, notification preferences
+  (localStorage), self-service account deletion (a request button), withdrawals, wallet **balance** and
+  **transaction history** (the tiles and the list on the Wallet page are derived from the jobs list and labelled as
+  such; the *balance* itself is real — `GET /wallet/me` now returns `usdc_balance`),
+  notifications (the bell shows no badge), the client's name/location and a job's category/location (jobs have
+  none — the mocks' fields are gone), a provider's trade title (first skill is used), provider/client
+  *names on jobs*, and public work history.
+- **Real provider shapes (confirmed live; the OpenAPI prose is wrong about them).** `GET /providers/{userId}` (public,
+  and presumably `/providers/me/profile`): `{ user: {id, first_name, last_name, …}, provider: {user_id, bio,
+  skill_category, location_country/state/city/area, reputation_score: "0.00", completed_jobs_count}, wallet_address,
+  wallet_type, skills: [{id,slug,name}], skill_category, reputation_score, completed_jobs, location: {…} }`. The
+  directory row (`/providers/discover`) is the flat `provider` object only — **no id (use `user_id`), no name, no
+  skills**. `normalizeProvider` (`lib/providers.ts`) turns either into the app's `ProviderProfile`; the hooks
+  normalize and screens never read raw shapes. Because rows have no names, `useProviderSearch`/`useProviderOptions`
+  fill each *visible* row (≤6, or 20 for the job form's picker) from `GET /providers/{id}` in parallel. The backend
+  can't search names, so the text box searches skill + city only. `select-provider` takes the provider's **user id**.
+  The backend also has `skill_category`, `location_state`, `location_area`, although the documented PATCH only takes
+  `bio, location_country, location_city, skill_slugs` — "Area, State" is still packed into `location_city`
+  (`lib/providerProfile.ts`), and reads prefer the real state/area fields when set.
+- **SECURITY (the backend's to fix, reported to the user):** the public `GET /providers/{id}` returns the whole `user`
+  row — email and `password_hash` included. The app keeps only the fields it needs and never renders the rest; don't
+  log or store that payload.
+- **Still unobserved:** cursor `GET /jobs` with real jobs (the empty list is `{items: [], next_cursor: null}`). The
+  `[api:…]` console log prints every raw response — check it on first real use.
+- **Verified how:** every flow was run in Chrome against faithful mocked responses (network interception) plus the
+  live public endpoints (`/skills`, wrong-credentials login). What has *not* been done is a real end-to-end run
+  with a real inbox/account/Freighter — the user needs to do that.
+
+**Every user action is logged to the browser console in dev** (`lib/logger.ts`): mutations are logged
+automatically by `ReactQueryProvider` as `[action] <meta.action> start | success | error` — give each new
+mutation `meta: { action: "area.name" }` — and one-off actions (sign-out, guard redirects) call
+`logAction`. Passwords, OTP codes and tokens are masked. HTTP calls are logged separately as `[api:…]` by
+the axios interceptors. Dev only (nothing in production builds).
+
 ## Monorepo layout
 
 Turborepo + pnpm, same shape as peakline:
@@ -158,13 +208,15 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   posts `POST /auth/signup` (`useSignUp`), stores the email in `signUpFlowStore`
   (sessionStorage) and pushes to `/auth/verify-otp`. `/auth/sign-in` is built (below).
   The Terms/Privacy text in the form is styled like links but isn't linked (no such pages yet).
-- **The whole auth flow runs on mock data for now — the user wants no backend calls until the
-  UI is finished.** `MOCK_AUTH` in `lib/simulation.ts` (currently `true`) makes `useSignUp`
-  simulate instead of hitting `POST /auth/signup` (the real call stays in place behind the
-  flag; `taken@example.com` fails with a 409 to exercise the error state). Verify/resend have
-  no real implementation yet. Apply the same mock-first approach to every new auth screen
-  (sign-in, forgot/reset password, ...) — don't wire a screen to the real API unprompted; the
-  real signup call was live for a while and returned an internal error from the backend.
+- **The auth flow is connected to the real backend** (`MOCK_AUTH` and the simulated hooks are gone).
+  `useSignUp` → `POST /auth/signup` (201, 409, 400 with `meta.issues`, 429 after 5/hour/IP; role and names
+  go as `role`, `first_name`, `last_name`). Errors come out of `lib/api/errorMessage.ts`
+  (`getApiErrorMessage(error, fallback, { 409: "…" })`, keyed by HTTP status; generic NestJS wording like
+  "Unauthorized Exception" and the throttler's text are replaced by plain sentences). **Rate limits:** sign-up
+  5/hour, OTP verify 10/15 min, resend 3/15 min, login 10/15 min — all per IP, so don't hammer them while testing.
+  **Not testable by me without an inbox:** the OTP email. The flows were verified in Chrome with faithful
+  mocked responses (network-level interception) plus the live backend for wrong-credentials sign-in; a real
+  end-to-end sign-up → email → OTP → dashboard has to be tried by the user.
 - `/auth/verified?role=client|provider` is the success screen after OTP (anything but
   `client` shows the provider version). Provider CTA → `/provider/onboarding`, client CTA
   ("Find a provider") → `/client/dashboard/providers` (not built yet);
@@ -174,25 +226,33 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   footer reads "Looking for work? Join as a provider"; the provider form has neither (location is
   collected in provider registration). The backend signup doesn't take a location, so the client's
   country/state are collected but unused until there's somewhere to send them.
-- **`/auth/sign-in` is mock-only** (`useSignIn`): any valid email/password succeeds and routes to
-  the role's dashboard (see "App routing"); `wrong@example.com` fails with a 401, and an address
-  starting with `client` signs in as a client (anything else: provider). "Forgot Password?" links to
-  `/auth/forgot-password` (not built). The real call and `remember me` handling notes are in the
-  hook. The sign-in mock has no "Sign up" link, so none was added.
+- **`/auth/sign-in`** (`useSignIn`) → `POST /auth/login` → `{ access_token, refresh_token, user }`: tokens go to
+  `authStore` (cookies; **"Remember me" unchecked = the refresh cookie is session-only**, tracked by a
+  `gw_remember=0` cookie so refresh rotation keeps the choice), the user is seeded into the session cache,
+  and the person lands on `dashboardHomeFor(user.role)`. **403** is ambiguous on the backend (unverified vs
+  suspended, same status): matched by wording (`/verif/`, not `/suspend/`) — unverified goes to the OTP step
+  and requests a fresh code, suspended shows a message; the code/message it sees is logged
+  (`auth.sign-in info`) so the exact `error` code can be pinned down on the first real case. 401 → "Invalid
+  email or password." The form ends with "Don't have an account? Sign up" → `/auth/sign-up` (added on request; the mock had none). "Forgot Password?" links to `/auth/forgot-password` (not built; the backend has
+  `POST /auth/forgot-password` and `POST /auth/reset-password` with an OTP).
 - Desktop content is anchored ~240px from the top (`AuthLayout`, matching every mock and the
   panel headline), not vertically centered; the offset shrinks on short windows so content
   isn't pushed off-screen. Tablet (`md`) stays centered, mobile is top-aligned.
-- **`/provider/onboarding` (provider registration) is mock-only too.** It uses its own shell
-  (`components/layouts/OnboardingLayout.tsx` — hero + benefits card on the left, no blue panel)
-  under `app/provider/(setup)/layout.tsx`. `useProviderRegistration` simulates the save and then
-  routes to `/provider/wallet`. Gaps to close before going live: the real call
-  is `PATCH /providers/me/profile` `{ bio, location_country, location_city, skill_slugs }` but
-  `skill_slugs` must come from the `GET /skills` catalog, so the free-text skills `TagInput`
-  needs to become a catalog autocomplete; the backend has no "category" (the categories in
-  `lib/mock/providerOptions.ts` are a grouping of its real skill names) and no separate
-  state/area (only country + city + geohash). States are mocked for NG/GH/KE/ZA only — other
-  countries get a free-text field. The benefit-card icons are meaningful ones (search/star/shield);
-  the mock used the same person glyph three times.
+- **`/provider/onboarding` (provider registration) is connected.** Own shell
+  (`components/layouts/OnboardingLayout.tsx` — hero + benefits card on the left, no blue panel) under
+  `app/provider/(setup)/layout.tsx`, which (like `(status)`) is behind `AuthGate role="provider"`. Submit →
+  `PATCH /providers/me/profile` `{ bio, location_country, location_city, skill_slugs }` (`useSaveProviderProfile`,
+  shared with Settings), then `/provider/wallet`. **The form has more fields than the backend:** *category* is
+  UI-only (it just narrows the skill suggestions and is never sent; on edit it's inferred from the saved skills),
+  and *state* + *area* are packed into the one city string as "Area, State" (`lib/providerProfile.ts`
+  `encodeCity`/`decodeCity`). Countries are ISO codes already (what the backend wants). States are still a mock list
+  for NG/GH/KE/ZA (other countries: free text). **Skills come from the real `GET /skills` catalog**
+  (`useSkills`, cached an hour; `SkillsField` is shared by registration and Settings) and are sent as slugs; the
+  backend accepts only catalog skills (max 20), so `TagInput` got `allowCustom={false}` (typed text is accepted
+  only when it matches a suggestion, other text is dropped on blur). Backend limits: bio ≤ 2000, city ≤ 120. The
+  saved-profile response shape (`ProviderProfile`: `skills: {slug,name}[]`, `bio`, `location_*`) is **taken from the
+  spec's prose and not yet observed live** (no provider exists in the database to read one from) — check it on the
+  first real save; the API log prints the raw response.
 - **Provider setup screens share `OnboardingLayout`** via the `app/provider/(setup)` route group
   (`onboarding` → `wallet`). From `lg` up the viewport is fixed: logo + hero + benefits stay put
   and the right column has a fixed height. Screens that put a `shrink-0` heading first and a
@@ -206,21 +266,29 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   suggestions follow the chosen category (real skill names from the backend's catalog, grouped in
   `lib/mock/providerOptions.ts`). Note `FormControl` overwrites `data-slot` on the inner input —
   select it by `role="combobox"` in tests.
-- **`/provider/wallet` is mock-only** (`useWallet`): "Connect" accepts any well-formed Stellar
-  public key (`G` + 55 base32 chars) and "Generate a wallet" just succeeds; both then go to `/`
-  (next screen not designed). The real flows: linking is a *signed challenge* —
-  `POST /wallet/link/challenge` then `POST /wallet/link/verify` with a signature, so a pasted
-  public key alone can't be verified — and "generate" maps to the platform custodial wallet,
-  `POST /wallet/me/bootstrap`.
-- **Wallet flow (all simulated):** `/provider/wallet` (connect/generate) → `/provider/wallet/connecting`
-  (spinner, ~2.6s, `WalletConnecting`) → `/provider/wallet/connected` (`WalletConnected`: masked address,
-  copy, "Go to Dashboard" → `/provider/dashboard`, not built) or `/provider/wallet/failed` (plain
-  full-page `WalletFailed`, outside the `(setup)` layout). The key travels in `walletFlowStore`; a
-  pasted key ending in `ZZZZZ` fails, so the failure screen is reachable. Opening `/connected` or
-  `/connecting` directly previews the design (sample address). The connecting screen is where the
-  real link-challenge/verify or bootstrap calls belong. `useStoreHydrated` (`src/hooks`) is the
-  pattern for `skipHydration` stores. The support link on the failed screen uses a placeholder
-  address, `SUPPORT_EMAIL` in `lib/site.ts`.
+- **Wallet step is connected** (`useConnectWallet`, `useWallet` in `features/provider/hooks/useWallet.ts`).
+  `/provider/wallet` → `/connecting` (does the work, once — guarded against the dev double-effect) →
+  `/connected` or `/failed` (`WalletFailed` says *why*: the connecting screen stores a plain-English reason in
+  `walletFlowStore`, which now also carries `mode`: `link` | `generate`). **Generate a wallet** = the platform's
+  custodial wallet: `POST /wallet/me/bootstrap` (idempotent; friendbot + stablecoin trustline). A wallet that exists but isn't
+  fully `funded`/`trustline_created` is **not** a failure (testnet friendbot is flaky): the connected screen shows a
+  "Finish setup" notice (`isWalletSetupIncomplete`) that calls bootstrap again. **Connect** = link the
+  provider's own wallet: `POST /wallet/link/challenge` → Freighter signs → `POST /wallet/link/verify`; the
+  "Use my Freighter account" link fills the field from the extension. The connected screen shows the real
+  `GET /wallet/me` address. Errors are mapped in `walletErrorMessage` (409 already linked, no Freighter, wrong
+  account, declined); link failures are tagged with their step (`WalletLinkError`: challenge 401 = server rejected the
+  request, verify 401/400 = bad signature). **Open:** a user hit a 401 while linking an existing wallet before steps
+  were told apart — if it recurs, read the `[api:…]` lines for `/wallet/link/challenge` and `/verify`.
+  **Open caveat — Freighter signs SEP-53, the backend documents a raw signature.** Freighter's `signMessage` signs
+  `sha256("Stellar Signed Message:\n" + message)`; the backend's docs say to sign the raw challenge bytes
+  (`kp.sign(Buffer.from(challenge))`). If it only verifies raw signatures, linking with Freighter will fail at
+  `verify` (401 "couldn't verify the signature") until the backend also accepts SEP-53
+  (`Keypair.verifyMessage`). Can't be settled without a real Freighter + provider account — **the first real
+  attempt decides it**; `lib/freighter.ts` documents this. (I initially recommended Freighter without checking
+  this; the user chose it anyway.) Custodial "Generate" doesn't depend on it. `lib/freighter.ts` wraps the
+  extension (`@stellar/freighter-api`, added to `apps/web` — **restart the dev server after `pnpm install`**) and
+  honours a dev-only `window.__GWANI_FREIGHTER__` stand-in, which is how it's tested without the extension.
+  The support link on the failed screen uses a placeholder address, `SUPPORT_EMAIL` in `lib/site.ts`.
 - If a freshly added route 404s in `next dev` while `next build` lists it, the dev cache is stale —
   restart the server (deleting `apps/web/.next/dev` if needed).
 - **Not-found, error and loading are branded, not generic.** `components/StatusScreen.tsx`
@@ -230,15 +298,12 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   CSS/SVG, respects reduced motion). The error page's escrow line ("payments held in escrow
   stay protected until you approve a release") is my copy — confirm it's an accurate promise.
   There's no `global-error.tsx` yet (errors thrown in the root layout itself aren't covered).
-- **`/auth/verify-otp` is SIMULATED, not wired to the backend** (deliberately, per the user).
-  `useVerifyOtp`/`useResendOtp` in `features/auth/hooks/useVerifyOtp.ts` use
-  `simulateRequest` (`lib/simulation.ts`): any 6 digits succeed (clears the flow store and routes
-  to `/auth/verified?role=…`); `000000` fails with an
-  `AxiosError`-shaped 400 (`simulatedApiError`, so the message/4xx-warning handling is
-  identical to a real failure). To go live, swap each `mutationFn` for the real call —
-  `POST /auth/verify-otp` `{ email, otp }` (returns tokens → `useAuthStore.setTokens`, then route
-  by `user.role`) and `POST /auth/resend-otp` `{ email }` — and nothing else changes. The resend
-  countdown is a fixed 45s (`RESEND_SECONDS`); the backend doesn't return a TTL.
+- **`/auth/verify-otp`** (`useVerifyOtp`, `useResendOtp`) → `POST /auth/verify-otp` `{ email, otp }` and
+  `POST /auth/resend-otp` `{ email }`. The email comes from `signUpFlowStore` (sessionStorage). A successful
+  verification is the first session: tokens stored, user cached, then `/auth/verified?role=…` for the role
+  **the backend reports**. 400 → "That code is invalid or has expired…", 404 → sign up again. The resend
+  countdown is a fixed 45s (`RESEND_SECONDS`); the backend doesn't return a TTL (its limit is 3 resends per 15
+  min). An empty flow store (direct visit) says "We lost track of your email".
 - `AuthBackButton` (`features/auth/components`) only renders on routes listed in
   `ROUTES_WITH_BACK` (currently just verify-otp): in the brand panel on desktop, in the header
   on mobile. `signUpFlowStore` uses `skipHydration` (the OTP form rehydrates it in an effect) so
@@ -280,8 +345,12 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   is a left slide-in (`MobileNav`, a Radix dialog restyled as a side panel, 300ms ease-out in /
   200ms ease-in out, backdrop timed to match via `DialogContent`'s `overlayClassName`), the page sits
   straight on the tinted background, and the page itself shows the bell + avatar (a page built for
-  this shell must render them under `lg:hidden`, as `DashboardOverview` does). Search and the bell
-  are static — nothing behind them yet. Job card type is deliberately small (16/14/12px on phones,
+  this shell must render them under `lg:hidden`, as `DashboardOverview` does). The bell is static (nothing
+  behind it). The header **search is real** (`HeaderSearch`, desktop header only): a combobox listing matching
+  dashboard pages and the user's jobs by title/status (`useJobs(role, { enabled })`, fetched only once text is
+  typed) and, for clients, a "Find providers for …" row that goes to `/client/dashboard/providers?q=…` (that page
+  reads `?q=` and keys the view on it). Arrows/Enter/Escape work; logged as `dashboard.search`. The greeting and
+  the header card show the **first name only**. Job card type is deliberately small (16/14/12px on phones,
   18/16/14px from `md`).
 - **Type scale (dashboards and settings; the user found the mocks' sizes too big).** Content sizes were
   scaled down for desktop and made to step up with the viewport, mobile untouched, layout untouched: page
@@ -294,77 +363,55 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   not touched** (they still use the mock's larger sizes).
  — both write
   `.next/dev/types` and the build's type-check then fails on a half-written file.
-- **Mock data only** (`lib/mock/providerDashboard.ts`): the stats, 12 jobs, and the "John Doe"
-  user. Job rows are a view model — the backend's `Job` has no client name, location or job date, so
-  those need joins/extra endpoints before this can go live. The greeting follows local time
-  (`useGreeting`, neutral on the server to avoid hydration mismatch). "N active jobs" is computed
-  from the mock list (the mock said 3 while showing 4 cards). The pager (`Pagination`, `@repo/ui`)
-  is shown only below `lg`, as in the mocks; desktop relies on "View all".
+- **Real data** (`features/jobs/hooks/useJobs.ts`, `lib/jobs.ts`): `useJobs("provider"|"client")` = `GET /jobs?role=…&limit=50`
+  following `next_cursor` (≤10 pages), newest first, refreshing every 30s while any job is mid-flight; a provider's
+  list drops `POSTED` jobs (the backend also returns open jobs "available to bid on" — those aren't theirs).
+  `useJob`/`useJobTransitions` refresh every 15s while a job is active. `toDashboardJob` maps a `Job` to what the cards
+  need; `DashboardJob` has **no client name, location or category** because the backend's job has none. Every
+  list/detail has a skeleton, a retry on error and an empty state (`components/QueryState.tsx`). The greeting
+  follows local time (`useGreeting`). The pager (`Pagination`, `@repo/ui`) is shown only below `lg` on the overview,
+  as in the mocks; desktop relies on "View all".
 - `JobStatusBadge` (`@repo/ui`) fixes the status → label/colour mapping used everywhere: FUNDED
   "Payment Secured" (green), PROVIDER_SELECTED "Provider Selected" and IN_PROGRESS "In Progress"
   (orange), plus my choices for the rest (POSTED "Open", COMPLETED/PAID green, DISPUTED, CANCELLED).
-- **Profile** (`features/dashboard/components/profile/`, mock: `lib/mock/providerProfile.ts`): built from
-  the mock's first desktop variant (reputation card beside the avatar, About + Skills side by side,
-  full-width wallet card, bordered work-history list) and the mobile mock without its bottom nav. On
-  phones each history row becomes a label/value card and the pager appears (`lg:hidden`, as on the
-  overview); the "Profile" h1 is `sr-only` there. The wallet card is the shared
-  `components/WalletAddressCard` (also used on the wallet-connected screen). Choices to confirm: the
-  mocks disagree on the name (used the logged-in mock user, John Doe), had typos ("UDSC" → USDC) and
-  placeholder bio text (replaced); the headline "Plumber" and the 4.8 / 22 / 20 / 27 figures come from
-  the design and aren't derived from each other; the menu says "My Jobs" though the profile mocks say
-  "Jobs". Backend gaps: no headline field, and avatars need the file-upload flow. `StarRating`
-  (`@repo/ui`) is display-only and rounds to whole stars. COMPLETED is now green like PAID (the
-  work-history mock shows a green "Completed").
-- **My Jobs** (`features/dashboard/components/jobs/JobsView`, mock: `lib/mock/providerJobs.ts`, 50 jobs):
-  status tabs (an accessible tablist with arrow-key navigation) over the same `JobCard`s as the overview,
-  10 per page. Unlike the overview the pager shows at every size (this is the full list; the desktop mock
-  was cut off before it). Tab → status mapping is in `JOB_FILTERS`: In Progress = PROVIDER_SELECTED/
-  FUNDED/IN_PROGRESS, Completed = COMPLETED/PAID, and **On Hold = DISPUTED** — the backend has no "on
-  hold" status, so confirm that's the intent. "All" also includes open and cancelled jobs. The "My Jobs"
-  h1 is `sr-only` on phones (the mock starts at the tabs); the mobile mock's bottom nav is not built (the
-  slide-in menu is the mobile nav). Meta-row icons stay person/calendar/pin as on the overview (the
-  jobs mock used a pin for all three). Empty tabs show an `EmptyState`.
-- **Job detail** (`features/dashboard/components/jobs/{JobDetailView,JobTimeline,CompleteJobDialog}`, mock:
-  `lib/mock/providerJobDetail.ts`, looked up by the list's job id, unknown id → 404): only the desktop
-  mock was supplied, so tablet/mobile are my adaptation (timeline turns vertical below `md`, the two
-  columns stack). A round back button beside the logo (`HeaderBackButton`, driven by a route table in
-  that file, so future detail pages just add a row). The six-step timeline (Posted → Provider Selected
-  → Payment Secured → In Progress → Completed → Paid) marks steps reached up to the job's status; a
-  DISPUTED job shows through In Progress, CANCELLED only Posted. The mock printed a date under every step,
-  including unreached ones — here only reached steps carry one (dates are derived from the job date, the
-  backend has no per-step timestamps). Dates use the app's day-first style ("14 Aug"), not the mock's
-  "Apr 12". "Mark as Completed" (IN_PROGRESS only) opens the confirm dialog → simulated request → success
-  step; the page behind flips to Completed but nothing persists, so a reload restores the mock status.
-  The real call is `POST /jobs/{id}/mark-completed`. Copy I wrote or corrected: the payment-box text for every
-  status other than in-progress/funded, "The client has been notified to review your work." (the mock's
-  success text was pasted from the wallet screen), and the mock's typos ("clients", "weeb deesigner").
-  The mock's menu shows a duplicate "Settings" — ignored. No "Start job" action for FUNDED jobs yet (not
-  designed; the backend has that transition).
-  **Reject Job** (`RejectJobDialog`): an outline-red button under "Mark as Completed" while the job is
-  PROVIDER_SELECTED / FUNDED / IN_PROGRESS (the provider has it, hasn't finished it). Dialog = the completion
-  dialog's frame (`JobDialog` + `JobSummary` in `jobs/JobDialogParts`, shared) plus a required reason (10–500
-  characters). The mock has no success step, so submitting closes it, toasts, and the page shows the job as
-  Cancelled. The mock's subtitle ("mark it as completed") was pasted from the other dialog — reworded to "Let
-  the client know you can't take this job." **The backend has no provider-reject endpoint** (providers can
-  only `mark-completed`; `dispute` works only on COMPLETED jobs) — it needs e.g. `POST /jobs/{id}/reject
-  { reason }` and, if escrow is already funded, a refund to the client (`POST /jobs/{id}/escrow/refund`),
-  ending in CANCELLED.
-- **Wallet** (`features/dashboard/components/wallet/{WalletView,BalanceCard,RecentTransactions}`, mock:
-  `lib/mock/providerWallet.ts`): blue balance banner with the two summary tiles tucked under it (an
-  opaque `#f4f4ff` panel, since it overlaps the blue), the shared `WalletAddressCard`, recent
-  transactions. The eye hides only the balance. **Withdraw has no design** — it toasts "Withdrawals aren't
-  available yet". `View all` → `/wallet/transactions` (not built, 404s). Choices to confirm: the mock
-  showed the same tile twice, so I made them "Pending Earnings" and "Total Earned" (48,500 is invented),
-  with meaningful icons (clock / trend) instead of the mock's repeated person glyph; the mock's
-  transactions read like a client's wallet ("Payment to…", "Wallet Funded"), so I rewrote them for a
-  provider (received payments, a withdrawal, funding) keeping its colours (green in, red out) and arrow
-  directions; dates are absolute UTC ("20 Aug, 2026, 10:26 AM") rather than the mock's "Today/Yesterday"
-  (relative labels would mismatch between server and browser render); status is a pill on desktop and
-  plain grey text on phones, as in the mocks; "View all" is the wallet-connected screen's emerald.
-  The "Wallet" h1 is `sr-only` on phones. Real data would come from the backend's wallet balance and
-  transactions endpoints (not checked against the spec yet).
-- No auth guard yet (mock sign-in doesn't issue tokens). "Logout" just clears the auth store and
-  goes to `/auth/sign-in`. Avatars are initials — the mock's desktop avatar image wasn't supplied.
+- **Profile** (`features/dashboard/components/profile/`): real — identity from `/users/me`; bio, skills, location,
+  reputation and `jobs_completed` from `GET /providers/me/profile` (404 = "Finish setting up your profile" → onboarding);
+  address from `GET /wallet/me`; work history from the provider's COMPLETED/PAID jobs (no client names). Headline =
+  first skill; location = city + country name. Shares its parts (`ProfileParts`: identity, reputation, About, Skills)
+  with the client's provider preview. COMPLETED is green like PAID. `StarRating` (`@repo/ui`) is display-only,
+  whole stars. The "Profile" h1 is `sr-only` on phones.
+- **My Jobs** (`JobsView` → shared `JobsBoard`, real): status tabs (accessible tablist, arrow keys) over
+  `useJobs`, 10 per page, pager at every size. Tab mapping is `JOB_FILTERS` in `lib/jobs.ts` (In Progress =
+  PROVIDER_SELECTED/FUNDED/IN_PROGRESS, Completed = COMPLETED/PAID, **On Hold = DISPUTED** — the backend has no
+  on-hold). `JobsBoard` takes `loading`/`loadingState`/`error` so the title and tabs stay while the list loads.
+- **Job detail** (`jobs/{JobDetailView,JobTimeline,CompleteJobDialog,ConfirmJobActionDialog}`, shared by both roles:
+  `/provider/dashboard/jobs/[id]` and `/client/dashboard/jobs/[id]`): `GET /jobs/{id}` + `GET /jobs/{id}/transitions`.
+  The six-step timeline now has **real dates** (`buildTimeline`: reached = the job got there or further; each step
+  dated by the transition into it; DISPUTED shows through Completed; CANCELLED only what it reached). 404 → the
+  branded not-found page. **Actions by role and status:** provider — *Mark as Completed* (IN_PROGRESS; the
+  designed confirm → success dialog; `POST /jobs/{id}/mark-completed`) and *Raise a dispute* (COMPLETED); client —
+  *Fund escrow* (PROVIDER_SELECTED; `POST /jobs/{id}/escrow/fund`; 422 = "insufficient balance or no trustline"),
+  *Release payment* (COMPLETED; `escrow/release`, irreversible), *Raise a dispute* (COMPLETED; `/dispute`), *Find a
+  provider* (POSTED). Fund/Release/Dispute have **no designs** — they use the completion dialog's frame
+  (`ConfirmJobActionDialog`) and the provider layout. Errors show inside the dialog; 409 (the other side just
+  acted) refreshes the job. **The "Reject this Job" dialog from the mocks was removed** (no backend endpoint: providers
+  can only `mark-completed`; `dispute` only works on COMPLETED jobs) — it needs something like `POST /jobs/{id}/reject
+  { reason }` plus a refund; restore it from git history (`RejectJobDialog`, `rejectJobSchema` still exists).
+  A round back button beside the logo (`HeaderBackButton`).
+- **Wallet** (`wallet/{WalletView,BalanceCard,RecentTransactions}`, both roles via `WalletView role`): the address, type,
+  funded state and **USDC balance** (`usdc_balance`, a decimal string) are real (`GET /wallet/me`); the banner reads
+  "Wallet Balance". **The backend still has no transactions endpoint**, so the two tiles and the list are *derived from
+  the jobs list and labelled as what they are*: provider — Pending Earnings (COMPLETED, awaiting release), In Escrow
+  (FUNDED + IN_PROGRESS); client — Awaiting Your Release (COMPLETED), In Escrow. "Recent Transactions" = the paid
+  jobs (released escrow). **Never cached (the user's call):** `useWallet` is `staleTime: 0`, `gcTime: 0`,
+  refetch-on-mount/focus, and on this page (`live: true`, also for `useJobs`) re-fetched every 15s; job actions
+  (`refreshJobs`) invalidate the wallet too, since escrow moves money. **Withdraw** (provider) toasts "not available yet"; a client with an unfunded custodial wallet gets **Set up
+  wallet** (`POST /wallet/me/bootstrap`), needed before funding escrow. The client wallet page has no design — it is the
+  provider's. If the backend adds a balance/transactions endpoint, swap the derivation in `WalletView`.
+- Auth: both dashboards sit behind `AuthGate` (see "App routing"); the header name, greeting and settings
+  identity are the signed-in user's. "Logout" calls `POST /auth/logout`, clears tokens and the query cache.
+  Avatars are initials — the mock's desktop avatar image wasn't supplied. The bell's badge is 0 (no
+  notifications endpoint exists), so no fake count shows on a real account.
 
 ## App routing
 
@@ -375,13 +422,16 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
 - **`/` in apps/web is a router, not a page** (`features/auth/components/RoleRedirect`): signed in →
   `dashboardHomeFor(role)`, otherwise → `/auth/sign-in`. The public site is `apps/landing`. ADMIN has no
   dashboard here (its own app), so it falls back to sign-in.
-- **The role comes from `lib/stores/mockSessionStore`** (localStorage, role only) because mock sign-in
-  and OTP issue no tokens. Mock sign-in sets it from the email (`client…` → client), OTP verify from the
-  role chosen at sign-up, dashboard Logout clears it. **When auth goes live, delete the store and read
-  `user.role` from the login/verify response or `useSession`** (call sites are commented).
-- **No route guards yet, deliberately** — the dashboards are open so screens can be previewed by URL.
-  Add them with real auth: a role check per tree (provider on `/client/*` → redirected to their own
-  dashboard) needs the role on the server (JWT claim or a small cookie) to avoid a client-side flash.
+- **The role is the signed-in user's** (`useCurrentUser()` in `features/auth/hooks/useSession.ts`: one of
+  `loading | unauthenticated | error | authenticated`, reading `GET /users/me`). The temporary mock session
+  store is deleted.
+- **Guards are live**: `AuthGate` (`features/auth/components/AuthGate.tsx`) wraps each dashboard layout —
+  signed out → `/auth/sign-in`; signed in as the other role → their own dashboard; profile failed to load
+  (network/5xx) → a retry screen rather than a bounce. It's a client-side guard (tokens are cookies read in
+  the browser), so it stops strangers *seeing* screens; the data is protected by the JWT server-side. An
+  expired access token is refreshed automatically before anything renders (`AuthProvider` → `refreshSession`,
+  cross-tab lock); a rejected refresh clears the session. The onboarding and wallet screens
+  (`app/provider/(setup)`, `(status)`) are behind it too. Signed-in users visiting `/auth/*` aren't redirected yet.
 - `robots.ts` blocks crawlers from `/api/`, `/client/` and `/provider/` (landing is what gets indexed).
 - Open questions: if landing lives on another (sub)domain, links from it to `/auth/*` should use an env
   var for web's origin, and a parent-domain session cookie is only needed if landing wants to show
@@ -396,58 +446,38 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   if it's in the menu, it's already linked (menu items with no page 404). Client menu: Overview, Find
   Providers, Jobs, Profile, Wallet · Settings, Help. Built so far: the overview
   (`/client/dashboard`), Find Providers (`/client/dashboard/providers`), a provider's preview (`.../providers/[id]`), My Jobs
-  (`.../jobs`), Post a New Job (`.../jobs/new`) and Settings. Not built: the client's Wallet, Profile and
-  Help, and a job's detail (`.../jobs/[id]`, so the job cards' "View" 404s). Everything in the "Provider
+  (`.../jobs`), Post a New Job (`.../jobs/new`) Settings, the job detail (`.../jobs/[id]`) and Wallet. Not built: the
+  client's Profile and Help (menu items that hit the branded 404). Everything in the "Provider
   dashboard" notes about the frame (fixed floating cards, spacing constants, mobile drawer, bell/avatar
   under `lg:hidden`) applies here too.
-- **Overview** (`features/dashboard/components/client/{ClientOverview,ClientJobCard,QuickActions}`, mock:
-  `lib/mock/clientDashboard.ts`): greeting, three stats (Active Jobs, Completed Jobs, Total Spent),
-  Quick Actions (Post a New Job → `/client/dashboard/jobs/new`, Find Providers, Wallet — none built),
-  and the active jobs. The stat row is 3-up from `xl`; the Total Spent value drops a size below `2xl`
-  so "25,000 USDC" fits (`StatCard`'s `valueClassName`). The signed-in name is still the one mock user
-  ("John Doe", from `MOCK_PROVIDER`) — there's no separate client user mock yet.
-- Copy/data choices to confirm: the mocks disagree on the active count (25 / 3 / four cards shown), so
-  it's computed from the mock jobs (4) and the subtitle says "your jobs" (desktop) — the mobile mock's
-  wording was used for both; Quick Action icons are meaningful ones (briefcase/person/wallet) rather
-  than the mobile mock's link/QR glyphs; only *active* jobs are listed here, "View all" is the full list;
-  the mock's first card is highlighted (a hover state) — reproduced as hover only. The provider's name
-  and category name on a job card are joins the backend's `Job` doesn't give directly.
-
-- **Find Providers** (`features/dashboard/components/client/providers/{FindProvidersView,ProviderCard,FilterPill}`,
-  mock: `lib/mock/providers.ts`, 128 generated providers): a search box (live filter on name, trade and
-  location), category / location / rating chips, a 3-up card grid (2 on tablet, 1 on phones), 6 per page
-  with the pager at every size. The chips are **native `<select>`s** laid invisibly over a styled pill
-  (`FilterPill`) — the platform picker on phones, accessible for free; "All Categories" keeps its
-  highlighted look even when unset, as in the mock. The results count is visible on phones only (the
-  mock's desktop omits it) and `aria-live` everywhere. Search button is desktop-only (mobile mock has
-  none; the list filters as you type anyway). **The trailing "Filter" chip has no design** — it toasts
-  "More filters are coming soon". Avatars are initials (the mock's photo isn't an asset). "View profile"
-  → `/client/dashboard/providers/{id}` (not built). The mocks repeat one placeholder provider ("Jane
-  Doe, Plumber, 4.0, 22 jobs"), so names/trades/figures are varied to make filters testable. Real data:
-  `GET /providers/discover` (`items`) — its filter params and the missing category/trade title still
-  need checking against the spec.
-- **Provider preview** (`.../providers/[id]`, `ProviderPreviewView`, mock: `lib/mock/providerPreview.ts`):
-  what a client sees before hiring. Built from the same shared parts as the provider's own Profile
-  (`features/dashboard/components/profile/ProfileParts`: identity, reputation, About, Skills — plus the
-  wallet card and `WorkHistory`), so the two can't drift; `ProfileView` was refactored onto them. Mobile
-  order differs from desktop (reputation first on phones; About + Skills above reputation + wallet on
-  desktop — DOM follows phone order, `lg:order-*` rearranges). "Back to providers" is an in-page
-  `BackHeader` link (a fixed parent, not `router.back()`, so it doesn't restore filters/page). "Hire
-  Provider" → `/client/dashboard/jobs/new?provider={id}`. Choices to confirm: the mobile mock drew work
-  history as job cards but the provider's own profile mock drew label/value cards — I reused the latter
-  everywhere; the mock showed 22 / 22 / 20 for related counts, here one figure (`jobs_completed`) feeds
-  all three; "View all" has no target yet (points back at this page); the wallet address is the sample key.
-- **My Jobs (client)** (`ClientJobsView`, mock: `MOCK_ALL_CLIENT_JOBS`, 50 jobs): the provider's jobs list and
-  this one share `jobs/JobsBoard` (tabs, pager, empty state) and differ only in the card and the header
-  action ("Post a New Job" opposite the title). Tab mapping is `JOB_FILTERS` (On Hold = DISPUTED). The
-  mock's highlighted "Find Providers" menu item on this screen was a mock slip — "Jobs" is highlighted.
-- **Post a New Job** (`PostJobForm`, validation `lib/validations/jobValidations.ts`): Service Provider
-  (native select over the 128 mock providers; preselected from `?provider=`, unknown ids ignored), Title,
-  Description, Amount + a fixed USDC box. **Backend shape:** `POST /jobs` takes only title (3–200),
-  description (10–5000) and `price_amount` (decimal string, ≤7 places) + asset — the provider is chosen
-  in a *second* call, `POST /jobs/{id}/select-provider` — so this form's first field is really step two.
-  **"Next" leads to a screen that isn't designed** (presumably review + fund escrow): a valid form just
-  toasts that; nothing is created.
+- **Overview** (`client/{ClientOverview,ClientJobCard,QuickActions}`, real): greeting; Active Jobs (a provider is chosen
+  and the job isn't finished), Completed Jobs (COMPLETED + PAID), Total Spent (PAID); Quick Actions; the active jobs.
+  Job cards show title, amount, posted date and status only (no provider name/category/location — not on a job).
+  Not built: the client's Profile and Help pages.
+- **Find Providers** (`client/providers/{FindProvidersView,ProviderCard,FilterPill}`, real): `GET /providers/discover`
+  (public; `skill` slug partial, `country`, `city` partial, `min_reputation`, `page`, `page_size`). The chips are native
+  `<select>`s over a styled pill: **All Skills** (the real `GET /skills` catalog — the mock's "categories" don't exist on
+  the backend), **Location** (country), **Rating** (min reputation). The text box can't be one server query: with text,
+  `useProviderSearch` runs two (skill match, city match — names can't be searched) and pages the merge; with no text it's one paged request and the count/pager are the server's. Text is
+  debounced 350ms. The trailing "Filter" chip has no design (toasts "coming soon"). Avatars are initials; "what they
+  do" is the first skill; rows a profile has nothing for are left out. Names/skills come from each visible row's full profile (see "Real
+  provider shapes").
+- **Provider preview** (`.../providers/[id]`, `ProviderPreviewView`, real): `GET /providers/{id}` — identity, reputation,
+  About, Skills, and the provider's (public) wallet address card. There's **no public work history**.
+  "Hire Provider" → `/client/dashboard/jobs/new?provider={id}`; 404 → the branded not-found page.
+- **My Jobs (client)** (`ClientJobsView`, real): the shared `JobsBoard` with client job cards and "Post a New Job"
+  opposite the title.
+- **Post a New Job** (`PostJobForm`, `usePostJob`, validation `lib/validations/jobValidations.ts`, real): fields as designed;
+  the provider field is a **combobox** (`Combobox`, `@repo/ui` — open it like a select or type to narrow: every typed
+  word must match the name or the "trade · place" line, accents/case ignored; only picking sets the value, half-typed
+  text reverts on blur) over the first **20** providers from discover (`useProviderOptions`; each needs a profile fetch
+  for its name, so it isn't raised) plus the `?provider=` one fetched by id — a provider beyond those 20 can't be
+  found by name here (the backend can't search names); Find Providers is the way to reach them. **Submitting is two
+  calls:** `POST /jobs` `{ title (3–200), description (10–5000), price_amount (decimal string ≤7 places), price_asset:
+  "USDC" }`, then `POST /jobs/{id}/select-provider` `{ provider_id }` (the provider's **user** id), then it lands on
+  the job page where **Fund escrow** is offered. If the job is created but choosing the provider fails it still
+  lands on the job, saying the job was saved and why the provider wasn't assigned. 403 → "Only client accounts can
+  post jobs". The button still reads "Next" (the design's label).
 - **Settings / Account** (`features/settings/`, routes `/provider/dashboard/settings` and
   `/client/dashboard/settings`, one `SettingsView role=…`; from the supplied mocks). **Two looks, same
   forms:** below `lg` an "Account" page (avatar with camera badge, the shared wallet card, a menu list:
@@ -462,11 +492,10 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   grey-outline Cancel). Panel Cancel restores the saved values; sheet Cancel
   closes. Content unmounts on close, so each open starts from the saved values.
   - Personal Information: first/last name editable, **email read-only** with a "contact support" note —
-    `PATCH /users/me` takes only the names and there's no email-change flow. Avatar: pick an image (PNG/
-    JPG/WebP ≤5 MB) to preview it locally; not uploaded (real: `POST /files/request-upload`, purpose
-    `AVATAR`); initials until then (the mock's 3D avatar isn't an asset).
-  - Provider Information: the registration form's fields prefilled (`MOCK_PROVIDER_INFO`), same schema and
-    the same backend gaps (skills must be catalog `skill_slugs`; no category/state/area fields).
+    `PATCH /users/me` takes only the names and there's no email-change flow. Avatar: pick an image (PNG/JPG/WebP ≤5 MB) → **real upload** (`POST /files/request-upload`, purpose `AVATAR`, then a PUT to the presigned storage URL) and it previews at once. **Showing it back is a workaround:** nothing on the user or provider profile links to an avatar file, so the file id is kept in localStorage per user and shown via `GET /files/{id}/download-url` — only in this browser and only on this screen (`useAvatar`). The storage bucket must allow browser uploads (CORS) — unverified. Initials until then (the mock's 3D avatar isn't an asset).
+  - Provider Information: the registration form's fields on the **real saved profile** (`GET`/`PATCH
+    /providers/me/profile`; skeleton while loading, retry on error, an empty form when the provider has no
+    profile yet), same schema and the same category/state/area mapping as registration.
   - Change Password: **Old + New only, as designed (no confirm field)**. **The backend has no signed-in
     change-password endpoint** (only the OTP `forgot-password` → `reset-password`) — needs a new endpoint or
     to route through the OTP flow. Test hook: old password `Wrong123` fails.
@@ -477,8 +506,8 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
     deletion" — because the backend only has admin-side GDPR erasure. Logout uses the shared `useLogout`.
   - Not in the mocks, so not built: any settings for the client's own profile beyond the above (the mock's
     Provider Information item is providers-only; nothing client-specific was shown).
-- **Screens requested but not built (no design received):** the client's Wallet page and a "success
-  payments" modal (those messages arrived without their images). Ask again if still wanted.
+- **Screens not built:** the client's Profile and Help pages, and the "success payments" modal (its image never
+  arrived). Undesigned but built anyway: the client's job detail, Fund/Release/Dispute dialogs and the client wallet.
 
 ## Known issues
 

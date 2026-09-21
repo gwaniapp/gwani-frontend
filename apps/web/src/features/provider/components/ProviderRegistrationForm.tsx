@@ -1,15 +1,16 @@
 "use client";
 
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@repo/ui/button";
 import { Input } from "@repo/ui/input";
 import { Select } from "@repo/ui/select";
-import { TagInput } from "@repo/ui/tag-input";
 import { Textarea } from "@repo/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@repo/ui/form";
 import { CountryField, StateField } from "@/components/forms/LocationFields";
-import { ALL_SKILLS, SERVICE_CATEGORIES } from "@/lib/mock/providerOptions";
+import { SERVICE_CATEGORIES } from "@/lib/mock/providerOptions";
+import { SkillsField } from "@/features/provider/components/SkillsField";
+import { useSkills } from "@/features/provider/hooks/useProviderProfile";
 import {
 	providerRegistrationSchema,
 	type ProviderRegistrationValues,
@@ -35,10 +36,8 @@ function ProviderRegistrationForm() {
 		resolver: zodResolver(providerRegistrationSchema),
 		defaultValues: { bio: "", category: "", skills: [], country: "", state: "", area: "" },
 	});
-	const register = useProviderRegistration();
-	const category = useWatch({ control: form.control, name: "category" });
-	// Suggestions follow the chosen category; without one, offer everything.
-	const skillSuggestions = SERVICE_CATEGORIES.find((c) => c.value === category)?.skills ?? ALL_SKILLS;
+	const skills = useSkills();
+	const register = useProviderRegistration(skills.data);
 
 	return (
 		<>
@@ -96,26 +95,7 @@ function ProviderRegistrationForm() {
 							)}
 						/>
 
-						<FormField
-							control={form.control}
-							name="skills"
-							render={({ field }) => (
-								<FormItem className={ITEM_CLASS}>
-									<FormLabel className={LABEL_CLASS}>What skill/service(s) do you provide?</FormLabel>
-									<FormControl>
-										<TagInput
-											name={field.name}
-											value={field.value}
-											onChange={field.onChange}
-											onBlur={field.onBlur}
-											suggestions={[...skillSuggestions]}
-											placeholder="Type in as many"
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
+						<SkillsField labelClassName={LABEL_CLASS} itemClassName={ITEM_CLASS} />
 
 						<CountryField labelClassName={LABEL_CLASS} fieldClassName={FIELD_CLASS} itemClassName={ITEM_CLASS} />
 

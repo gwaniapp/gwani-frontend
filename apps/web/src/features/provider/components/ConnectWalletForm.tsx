@@ -8,8 +8,10 @@ import { Button } from "@repo/ui/button";
 import { Input } from "@repo/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@repo/ui/form";
 import { connectWalletSchema, type ConnectWalletValues } from "@/lib/validations/providerValidations";
-import { generateMockPublicKey } from "@/lib/wallet";
-import { useWalletFlowStore } from "@/lib/stores/walletFlowStore";
+import { toast } from "@repo/ui/sonner";
+import { walletErrorMessage } from "@/features/provider/hooks/useWallet";
+import { getFreighterAddress } from "@/lib/freighter";
+import { useWalletFlowStore, type WalletMode } from "@/lib/stores/walletFlowStore";
 
 const ASSURANCES = [
 	"Your wallet controls your funds",
@@ -18,21 +20,31 @@ const ASSURANCES = [
 ];
 
 /**
- * Wallet step of provider setup — either connect an existing Stellar wallet by
- * its public key, or generate one. Both just remember the key and hand over to
- * the connecting screen, which is where the (simulated) work happens.
+ * Wallet step of provider setup — either link an existing Stellar wallet (its
+ * public key, proven with a signature from the Freighter extension) or generate
+ * the platform's custodial one. Both just remember the choice and hand over to
+ * the connecting screen, which does the real work (see `useConnectWallet`).
  */
 function ConnectWalletForm() {
 	const router = useRouter();
-	const setPublicKey = useWalletFlowStore((state) => state.setPublicKey);
+	const startFlow = useWalletFlowStore((state) => state.start);
 	const form = useForm<ConnectWalletValues>({
 		resolver: zodResolver(connectWalletSchema),
 		defaultValues: { publicKey: "" },
 	});
 
-	function continueWith(publicKey: string) {
-		setPublicKey(publicKey);
+	function continueWith(mode: WalletMode, publicKey = "") {
+		startFlow(mode, publicKey);
 		router.push("/provider/wallet/connecting");
+	}
+
+	// Fills the field from the account Freighter is using, so nobody has to copy an address by hand.
+	async function fillFromFreighter() {
+		try {
+			form.setValue("publicKey", await getFreighterAddress(), { shouldValidate: true });
+		} catch (error) {
+			toast.error(walletErrorMessage(error));
+		}
 	}
 
 	return (
@@ -48,7 +60,7 @@ function ConnectWalletForm() {
 				<Form {...form}>
 					<form
 						noValidate
-						onSubmit={form.handleSubmit((values) => continueWith(values.publicKey))}
+						onSubmit={form.handleSubmit((values) => continueWith("link", values.publicKey))}
 						className="flex flex-col gap-7.5 md:gap-15"
 					>
 						<FormField
@@ -67,6 +79,13 @@ function ConnectWalletForm() {
 											{...field}
 										/>
 									</FormControl>
+									<button
+										type="button"
+										onClick={fillFromFreighter}
+										className="self-start text-b3 text-primary-500 underline-offset-4 outline-none hover:underline focus-visible:underline md:text-b1"
+									>
+										Use my Freighter account
+									</button>
 									<FormMessage />
 								</FormItem>
 							)}
@@ -83,7 +102,7 @@ function ConnectWalletForm() {
 						type="button"
 						size="large"
 						className="h-11 w-full md:h-15 md:text-btn-giant"
-						onClick={() => continueWith(generateMockPublicKey())}
+						onClick={() => continueWith("generate")}
 					>
 						Generate a wallet
 					</Button>

@@ -1,40 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import { Check, Info } from "lucide-react";
 import { Button } from "@repo/ui/button";
 import { JobDialog, JobSummary } from "@/features/dashboard/components/jobs/JobDialogParts";
-import { simulateRequest } from "@/lib/simulation";
-import type { JobDetail } from "@/lib/mock/providerJobDetail";
+import { useMarkCompleted } from "@/features/jobs/hooks/useJobs";
+import type { DashboardJob } from "@/lib/jobs";
 
 export type CompleteStep = "confirm" | "done";
 
 interface CompleteJobDialogProps {
-	job: JobDetail;
+	job: DashboardJob;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	step: CompleteStep;
 	onStepChange: (step: CompleteStep) => void;
-	/** Called once the (simulated) request succeeds, so the page behind can show the new status. */
-	onCompleted: () => void;
 }
 
 /**
- * "Mark as Completed" — confirm, then a success step. The request is simulated
- * (mock-first); the real call is `POST /jobs/{id}/mark-completed`, after which the
- * job is COMPLETED and the client is asked to confirm before escrow releases.
- * The parent owns `open`/`step` so it can reset to the confirm step each time
- * the dialog is opened without the content flashing during the close animation.
+ * "Mark as Completed" — confirm, then a success step. `POST
+ * /jobs/{id}/mark-completed` (IN_PROGRESS → COMPLETED); afterwards the client is
+ * asked to confirm and release the escrowed payment. The parent owns
+ * `open`/`step` so it can reset to the confirm step each time the dialog is
+ * opened without the content flashing during the close animation. A failure
+ * (usually "the job isn't in progress any more") shows inside the dialog.
  */
-function CompleteJobDialog({ job, open, onOpenChange, step, onStepChange, onCompleted }: CompleteJobDialogProps) {
-	const complete = useMutation({
-		mutationFn: () => simulateRequest({ id: job.id }),
-		onSuccess: () => {
-			onCompleted();
-			onStepChange("done");
-		},
-	});
+function CompleteJobDialog({ job, open, onOpenChange, step, onStepChange }: CompleteJobDialogProps) {
+	const complete = useMarkCompleted(job.id);
+	const [error, setError] = useState("");
+
+	function confirm() {
+		setError("");
+		complete.mutate(undefined, {
+			onSuccess: () => onStepChange("done"),
+			onError: (failure) => setError(complete.describe(failure)),
+		});
+	}
 
 	return (
 		<JobDialog
@@ -46,7 +48,7 @@ function CompleteJobDialog({ job, open, onOpenChange, step, onStepChange, onComp
 		>
 			{step === "confirm" ? (
 				<div className="flex flex-col gap-6 px-5 py-6 sm:gap-8 sm:px-10 sm:py-8">
-					<JobSummary title={job.title} clientName={job.clientName} amount={job.priceAmount} asset={job.priceAsset} />
+					<JobSummary title={job.title} amount={job.priceAmount} asset={job.priceAsset} />
 
 					<div className="flex flex-col gap-2">
 						<p className="text-b2 font-medium text-foreground sm:text-b1 sm:font-medium">Are you sure this job is complete?</p>
@@ -62,9 +64,9 @@ function CompleteJobDialog({ job, open, onOpenChange, step, onStepChange, onComp
 						Payment will be released once the client confirms completion.
 					</p>
 
-					{complete.isError && (
+					{error && (
 						<p role="alert" className="text-b3 text-danger-600">
-							Something went wrong marking the job as completed. Please try again.
+							{error}
 						</p>
 					)}
 
@@ -79,13 +81,7 @@ function CompleteJobDialog({ job, open, onOpenChange, step, onStepChange, onComp
 						>
 							Cancel
 						</Button>
-						<Button
-							type="button"
-							size="giant"
-							className="w-full rounded-lg"
-							loading={complete.isPending}
-							onClick={() => complete.mutate()}
-						>
+						<Button type="button" size="giant" className="w-full rounded-lg" loading={complete.isPending} onClick={confirm}>
 							Mark as Completed
 							<Check className="size-5" aria-hidden="true" />
 						</Button>

@@ -21,8 +21,9 @@ function ProfileIdentity({
 	walletVerified,
 }: {
 	name: string;
-	headline: string;
-	location: string;
+	/** What they do — omitted when unknown (the backend has no trade field; the first skill is used). */
+	headline?: string;
+	location?: string;
 	rating: number;
 	jobsDone: number;
 	walletVerified?: boolean;
@@ -39,16 +40,22 @@ function ProfileIdentity({
 			</span>
 			<div className="flex min-w-0 flex-col items-start gap-2 lg:gap-3 lg:pt-3">
 				<h2 className="text-xl font-medium text-foreground lg:text-h5">{name}</h2>
-				<p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-b3 text-foreground lg:text-b1 2xl:text-lg">
-					<span className="inline-flex items-center gap-2">
-						<Briefcase className="size-4 lg:size-5" aria-hidden="true" />
-						{headline}
-					</span>
-					<span className="inline-flex items-center gap-2">
-						<MapPin className="size-4 lg:size-5" aria-hidden="true" />
-						{location}
-					</span>
-				</p>
+				{(headline || location) && (
+					<p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-b3 text-foreground lg:text-b1 2xl:text-lg">
+						{headline && (
+							<span className="inline-flex items-center gap-2">
+								<Briefcase className="size-4 lg:size-5" aria-hidden="true" />
+								{headline}
+							</span>
+						)}
+						{location && (
+							<span className="inline-flex items-center gap-2">
+								<MapPin className="size-4 lg:size-5" aria-hidden="true" />
+								{location}
+							</span>
+						)}
+					</p>
+				)}
 				{walletVerified && (
 					<span className="rounded-md bg-success-100 px-3 py-1 text-c2 text-[#0a7b4e] lg:text-b3">Verified Wallet</span>
 				)}
@@ -100,7 +107,7 @@ function AboutCard({ about, className }: { about: string; className?: string }) 
 	return (
 		<section className={cn(CARD, className)}>
 			<h2 className="text-xl font-medium text-foreground">About</h2>
-			<p className="mt-4 text-b3 leading-relaxed text-neutral-500 lg:text-b1">{about}</p>
+			<p className="mt-4 text-b3 leading-relaxed wrap-anywhere whitespace-pre-line text-neutral-500 lg:text-b1">{about || "No bio yet."}</p>
 		</section>
 	);
 }
@@ -109,6 +116,7 @@ function SkillsCard({ skills, className }: { skills: string[]; className?: strin
 	return (
 		<section className={cn(CARD, className)}>
 			<h2 className="text-xl font-medium text-foreground">Skills &amp; Services</h2>
+			{skills.length === 0 && <p className="mt-4 text-b3 text-neutral-500 lg:text-b1">No skills added yet.</p>}
 			<ul className="mt-5 flex flex-wrap gap-2.5">
 				{skills.map((skill) => (
 					<li key={skill} className="rounded-full bg-primary-100/50 px-5 py-1.5 text-c2 text-primary-600">

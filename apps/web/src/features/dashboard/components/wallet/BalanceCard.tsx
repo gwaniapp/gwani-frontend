@@ -1,70 +1,90 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, Eye, EyeOff, TrendingUp, type LucideIcon } from "lucide-react";
-import { Button } from "@repo/ui/button";
-import { toast } from "@repo/ui/sonner";
+import { Eye, EyeOff, type LucideIcon } from "lucide-react";
+import { Skeleton } from "@repo/ui/skeleton";
 import { formatMoney } from "@/lib/format";
-import { MOCK_WALLET } from "@/lib/mock/providerWallet";
 
-function Tile({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+interface Tile {
+	icon: LucideIcon;
+	label: string;
+	amount: number;
+}
+
+function TileView({ tile, asset, loading }: { tile: Tile; asset: string; loading: boolean }) {
+	const Icon = tile.icon;
 	return (
 		<div className="flex min-w-0 items-center gap-2 rounded-xl bg-white p-3 lg:gap-4 lg:rounded-2xl lg:p-5">
 			<span className="flex shrink-0 items-center justify-center text-primary-500 lg:size-10 lg:rounded-full lg:bg-primary-100/50">
 				<Icon className="size-4 lg:size-5" aria-hidden="true" />
 			</span>
 			<div className="flex min-w-0 flex-col lg:gap-1">
-				<p className="text-c1 text-foreground lg:text-b3">{label}</p>
-				<p className="text-c1 font-medium text-foreground lg:text-b1 lg:font-medium">{value}</p>
+				<p className="text-c1 text-foreground lg:text-b3">{tile.label}</p>
+				{loading ? (
+					<Skeleton className="mt-1 h-4 w-24" />
+				) : (
+					<p className="text-c1 font-medium text-foreground lg:text-b1 lg:font-medium">{formatMoney(tile.amount, asset)}</p>
+				)}
 			</div>
 		</div>
 	);
 }
 
+interface BalanceCardProps {
+	/** The big number's label, e.g. "Total Earned". */
+	label: string;
+	amount: number;
+	asset: string;
+	tiles: [Tile, Tile];
+	/** The big number is loading. */
+	loading: boolean;
+	/** The two tiles are loading (they come from a different request than the big number). Defaults to `loading`. */
+	tilesLoading?: boolean;
+	/** A button on the banner (Withdraw, Set up wallet…), or nothing. */
+	action?: React.ReactNode;
+}
+
 /**
- * The balance banner with the two summary tiles tucked under its bottom edge.
- * The eye hides the balance (a "•" mask) — only the balance, as in the mock.
- * Withdraw has no design yet, so it just says so.
+ * The balance banner with two summary tiles tucked under its bottom edge. The
+ * eye hides the big number — only that, as in the mock. The big number is the
+ * wallet's real USDC balance (`GET /wallet/me`); the two tiles are worked out
+ * from the person's jobs (see `WalletView`) and labelled as what they are.
  */
-function BalanceCard() {
+function BalanceCard({ label, amount, asset, tiles, loading, tilesLoading = loading, action }: BalanceCardProps) {
 	const [hidden, setHidden] = useState(false);
-	const { asset } = MOCK_WALLET;
 
 	return (
 		<section aria-label="Balance" className="overflow-hidden rounded-3xl bg-[#f4f4ff]">
 			<div className="flex flex-col gap-5 bg-primary-500 px-5 pt-6 pb-10 text-white lg:flex-row lg:items-start lg:justify-between lg:px-7.5 lg:pt-7 lg:pb-9">
 				<div className="flex flex-col gap-2 lg:gap-3">
 					<div className="flex items-center justify-between gap-6 lg:justify-start lg:gap-10">
-						<p className="text-b1">Wallet Balance</p>
+						<p className="text-b1">{label}</p>
 						<button
 							type="button"
 							onClick={() => setHidden((value) => !value)}
-							aria-label={hidden ? "Show balance" : "Hide balance"}
+							aria-label={hidden ? "Show amount" : "Hide amount"}
 							aria-pressed={hidden}
 							className="flex size-8 items-center justify-center rounded-md outline-none transition-colors hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-white"
 						>
 							{hidden ? <EyeOff className="size-5" aria-hidden="true" /> : <Eye className="size-5" aria-hidden="true" />}
 						</button>
 					</div>
-					<p className="text-h4 font-medium lg:text-h4 lg:font-medium" aria-live="polite">
-						{hidden ? `•••••• ${asset}` : formatMoney(MOCK_WALLET.balance, asset)}
-					</p>
+					{loading ? (
+						<Skeleton className="h-9 w-56 bg-white/25" />
+					) : (
+						<p className="text-h4 font-medium lg:text-h4 lg:font-medium" aria-live="polite">
+							{hidden ? `•••••• ${asset}` : formatMoney(amount, asset)}
+						</p>
+					)}
 				</div>
-				<Button
-					type="button"
-					variant="ghost"
-					size="large"
-					className="w-64 max-w-full self-center bg-white text-foreground hover:bg-white/90 focus-visible:bg-white lg:w-auto lg:self-start lg:px-12"
-					onClick={() => toast.info("Withdrawals aren't available yet.")}
-				>
-					Withdraw
-				</Button>
+				{action}
 			</div>
 
 			<div className="-mt-5 rounded-t-3xl bg-[#f4f4ff] p-3 lg:p-5">
 				<div className="grid grid-cols-2 gap-3 lg:gap-8">
-					<Tile icon={Clock} label="Pending Earnings" value={formatMoney(MOCK_WALLET.pendingEarnings, asset)} />
-					<Tile icon={TrendingUp} label="Total Earned" value={formatMoney(MOCK_WALLET.totalEarned, asset)} />
+					{tiles.map((tile) => (
+						<TileView key={tile.label} tile={tile} asset={asset} loading={tilesLoading} />
+					))}
 				</div>
 			</div>
 		</section>
@@ -72,3 +92,4 @@ function BalanceCard() {
 }
 
 export { BalanceCard };
+export type { Tile };

@@ -6,9 +6,20 @@ import { ArrowRight } from "lucide-react";
 import { JobStatusBadge } from "@repo/ui/job-status-badge";
 import { Pagination } from "@repo/ui/pagination";
 import { formatAmount, formatDate } from "@/lib/format";
-import type { WorkHistoryItem } from "@/lib/mock/providerProfile";
+import type { JobStatus } from "@repo/ui/job-status-badge";
 
 const PAGE_SIZE = 4;
+
+/** A finished job in a work-history list. The backend's job has no client name, so `clientName` is optional. */
+export interface WorkHistoryItem {
+	id: string;
+	title: string;
+	clientName?: string;
+	amount: number;
+	asset: string;
+	date: string;
+	status: JobStatus;
+}
 
 /**
  * Completed jobs. On desktop a bordered table-like list (title + client,
@@ -41,6 +52,7 @@ function WorkHistory({ jobs: allJobs, viewAllHref }: { jobs: WorkHistoryItem[]; 
 				</Link>
 			</div>
 
+			{allJobs.length === 0 && <p className="text-b3 text-neutral-500 lg:text-b1">Finished jobs will show up here.</p>}
 			<ul className="flex flex-col gap-4 lg:gap-0 lg:overflow-hidden lg:rounded-2xl lg:border lg:border-border">
 				{jobs.map((job) => (
 					<li
@@ -52,7 +64,7 @@ function WorkHistory({ jobs: allJobs, viewAllHref }: { jobs: WorkHistoryItem[]; 
 								<span className="text-foreground lg:hidden">Title</span>
 								<div className="min-w-0 text-right lg:text-left">
 									<p className="truncate font-medium text-foreground lg:text-s2">{job.title}</p>
-									<p className="hidden truncate text-b3 text-neutral-500 lg:block">Client: {job.clientName}</p>
+									{job.clientName && <p className="hidden truncate text-b3 text-neutral-500 lg:block">Client: {job.clientName}</p>}
 								</div>
 							</div>
 
@@ -64,10 +76,12 @@ function WorkHistory({ jobs: allJobs, viewAllHref }: { jobs: WorkHistoryItem[]; 
 								</span>
 							</div>
 
-							<div className="flex items-baseline justify-between gap-4 lg:hidden">
-								<span className="text-foreground">Client</span>
-								<span className="text-foreground">{job.clientName}</span>
-							</div>
+							{job.clientName && (
+								<div className="flex items-baseline justify-between gap-4 lg:hidden">
+									<span className="text-foreground">Client</span>
+									<span className="text-foreground">{job.clientName}</span>
+								</div>
+							)}
 
 							<div className="flex items-center justify-between gap-4">
 								<span className="text-foreground lg:hidden">Status</span>

@@ -1,21 +1,37 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@repo/ui/sonner";
+import { SESSION_KEY } from "@/features/auth/hooks/useSession";
 import { getApiErrorMessage } from "@/lib/api/errorMessage";
+import { apiRoutes } from "@/lib/config/apiRoutes";
+import { axiosAuth } from "@/lib/config/axios";
+import type { ApiSuccessResponse, User } from "@/lib/api/types";
 import { simulatedApiError, simulateRequest } from "@/lib/simulation";
-import type { ProviderRegistrationValues } from "@/lib/validations/providerValidations";
 import type { ChangePasswordValues, ProfileValues } from "@/lib/validations/settingsValidations";
 
 /** Entering this as the current password fails, to exercise the error state. */
 const WRONG_CURRENT_PASSWORD = "Wrong123";
 
 /**
- * SIMULATED — the real call is `PATCH /users/me` `{ first_name, last_name }`
- * (the only editable fields), then update the cached `GET /users/me`.
+ * `PATCH /users/me` `{ first_name, last_name }` (the only editable fields);
+ * the returned user replaces the cached `GET /users/me`, so the header and
+ * greeting update straight away.
  */
 function useUpdateProfile() {
+	const queryClient = useQueryClient();
+
 	return useMutation({
-		mutationFn: (values: ProfileValues) => simulateRequest(values),
-		onSuccess: () => toast.success("Profile updated"),
+		meta: { action: "settings.update-profile" },
+		mutationFn: async (values: ProfileValues) => {
+			const { data } = await axiosAuth.patch<ApiSuccessResponse<User>>(apiRoutes.users.ME, {
+				first_name: values.firstName,
+				last_name: values.lastName,
+			});
+			return data.data;
+		},
+		onSuccess: (user) => {
+			queryClient.setQueryData(SESSION_KEY, user);
+			toast.success("Profile updated");
+		},
 		onError: (error) => toast.error(getApiErrorMessage(error)),
 	});
 }
@@ -56,19 +72,4 @@ function useRequestAccountDeletion() {
 	});
 }
 
-/**
- * SIMULATED — the real call is `PATCH /providers/me/profile` with
- * `{ bio, location_country, location_city, skill_slugs }`. Same gaps as the
- * registration form: `skill_slugs` must come from the `GET /skills` catalog
- * (the free-text skills field has to become a catalog autocomplete), and the
- * backend has no category or separate state/area (only country + city).
- */
-function useUpdateProviderProfile() {
-	return useMutation({
-		mutationFn: (values: ProviderRegistrationValues) => simulateRequest(values),
-		onSuccess: () => toast.success("Provider information updated"),
-		onError: (error) => toast.error(getApiErrorMessage(error)),
-	});
-}
-
-export { useChangePassword, useRequestAccountDeletion, useUpdateProfile, useUpdateProviderProfile };
+export { useChangePassword, useRequestAccountDeletion, useUpdateProfile };

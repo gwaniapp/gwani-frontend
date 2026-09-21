@@ -6,7 +6,7 @@ import { EmptyState } from "@repo/ui/empty-state";
 import type { JobStatus } from "@repo/ui/job-status-badge";
 import { Pagination } from "@repo/ui/pagination";
 import { cn } from "@repo/ui/lib/utils";
-import { JOB_FILTERS } from "@/lib/mock/providerJobs";
+import { JOB_FILTERS } from "@/lib/jobs";
 
 const PAGE_SIZE = 10;
 
@@ -16,6 +16,11 @@ interface JobsBoardProps<T extends { id: string; status: JobStatus }> {
 	renderJob: (job: T) => React.ReactNode;
 	/** Sits opposite the title (e.g. "Post a New Job"). */
 	action?: React.ReactNode;
+	/** While the jobs load, `loadingState` shows instead of the list (the title and tabs stay). */
+	loading?: boolean;
+	loadingState?: React.ReactNode;
+	/** If loading failed, this replaces the list (e.g. a retry message). */
+	error?: React.ReactNode;
 }
 
 /**
@@ -24,7 +29,7 @@ interface JobsBoardProps<T extends { id: string; status: JobStatus }> {
  * and a pager shown at every size. The tab → status mapping is `JOB_FILTERS`
  * (On Hold = DISPUTED, since the backend has no "on hold").
  */
-function JobsBoard<T extends { id: string; status: JobStatus }>({ title, jobs: allJobs, renderJob, action }: JobsBoardProps<T>) {
+function JobsBoard<T extends { id: string; status: JobStatus }>({ title, jobs: allJobs, renderJob, action, loading, loadingState, error }: JobsBoardProps<T>) {
 	const [filterId, setFilterId] = useState(JOB_FILTERS[0]!.id);
 	const [page, setPage] = useState(1);
 	const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -95,7 +100,11 @@ function JobsBoard<T extends { id: string; status: JobStatus }>({ title, jobs: a
 			</div>
 
 			<div id="jobs-panel" role="tabpanel" aria-labelledby={`jobs-tab-${filterId}`} className="flex flex-col gap-5">
-				{jobs.length === 0 ? (
+				{loading ? (
+					loadingState
+				) : error ? (
+					error
+				) : jobs.length === 0 ? (
 					<EmptyState icon={Briefcase} title="No jobs here yet" description="Jobs with this status will show up here." />
 				) : (
 					<ul className="flex flex-col gap-5">
@@ -105,7 +114,7 @@ function JobsBoard<T extends { id: string; status: JobStatus }>({ title, jobs: a
 					</ul>
 				)}
 
-				{matching.length > 0 && (
+				{!loading && !error && matching.length > 0 && (
 					<div className="flex flex-wrap items-center justify-between gap-3 pt-3">
 						<p className="text-c1 text-neutral-500 lg:text-b3">
 							Showing {jobs.length} of {matching.length} entries

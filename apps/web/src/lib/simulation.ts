@@ -1,13 +1,6 @@
 import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 
 /**
- * While the auth screens are still being built, sign-up runs on simulated
- * responses instead of the real backend. Set to `false` to use the real API
- * (verify-otp/resend-otp are simulation-only until their real calls are written).
- */
-const MOCK_AUTH = true;
-
-/**
  * Stand-in for a network call while an endpoint isn't wired up yet — resolves
  * (or rejects, if `outcome` is an Error) after a short delay, so loading and
  * error states behave like the real thing. Swap the `mutationFn` that uses
@@ -38,4 +31,4 @@ function simulatedApiError(status: number, message: string) {
 	return new AxiosError(message, AxiosError.ERR_BAD_REQUEST, undefined, undefined, response);
 }
 
-export { MOCK_AUTH, simulateRequest, simulatedApiError };
+export { simulateRequest, simulatedApiError };

@@ -1,6 +1,6 @@
 import { cn } from "@repo/ui/lib/utils";
 import { formatDayMonth } from "@/lib/format";
-import type { TimelineStep } from "@/lib/mock/providerJobDetail";
+import type { TimelineStep } from "@/lib/jobs";
 
 // Half a step column minus the circle's radius (16px) and a 12px gap, so the
 // lines stop short of the circle instead of running into it.

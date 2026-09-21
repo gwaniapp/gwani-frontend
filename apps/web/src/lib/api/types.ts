@@ -148,6 +148,8 @@ export interface Wallet {
 	type: WalletType;
 	funded: boolean;
 	trustline_created: boolean;
+	/** The wallet's on-chain USDC balance, a decimal string ("10000.0000000"). Added to `GET /wallet/me` after the spec was written. */
+	usdc_balance?: string;
 }
 
 export interface BootstrapWalletData {
@@ -166,16 +168,35 @@ export interface Skill {
 	name: string;
 }
 
-/** `GET /providers/{id}`, `GET /providers/me/profile`. */
+/**
+ * A provider as the app uses it — *normalized* (see `normalizeProvider`) from
+ * the backend's two real shapes: the full profile (`GET /providers/{id}`,
+ * `GET /providers/me/profile`: `{ user, provider, skills, wallet_address, … }`) and the
+ * flat directory row (`GET /providers/discover`: `{ user_id, bio, location_*,
+ * reputation_score, completed_jobs_count }`, with **no name and no skills**).
+ * Confirmed against live responses — the OpenAPI spec's prose doesn't match.
+ */
 export interface ProviderProfile {
+	/** The provider's *user* id — what `select-provider` and `GET /providers/{id}` take. */
 	id: string;
-	bio: string | null;
-	location_country: string | null;
-	location_city: string | null;
-	location_geohash: string | null;
+	user_id: string;
+	/** Empty when the source (the directory list) doesn't carry names. */
+	first_name: string;
+	last_name: string;
+	bio: string;
+	location_country: string;
+	location_state: string;
+	location_city: string;
+	location_area: string;
+	/** Empty when the source doesn't carry skills (the directory list) — fetch the full profile for them. */
 	skills: Skill[];
+	skill_category: string;
 	reputation: number;
 	jobs_completed: number;
+	wallet_address?: string;
+	wallet_type?: WalletType;
+	/** True once this came from the full profile (names and skills are then real, not just absent). */
+	detailed: boolean;
 }
 
 export type FileUploadPurpose = "AVATAR" | "JOB_ATTACHMENT";

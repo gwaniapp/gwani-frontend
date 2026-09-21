@@ -1,13 +1,26 @@
+"use client";
+
 import Link from "next/link";
 import { Info, RefreshCw } from "lucide-react";
 import { Button } from "@repo/ui/button";
 import { Logo } from "@repo/ui/logo";
+import { useStoreHydrated } from "@/hooks/useStoreHydrated";
+import { useWalletFlowStore } from "@/lib/stores/walletFlowStore";
 import { SUPPORT_EMAIL } from "@/lib/site";
 
 const RETRY_HREF = "/provider/wallet";
 
-/** Full-page "Connection Failed" screen — reached when connecting or generating the wallet doesn't go through. */
+const DEFAULT_MESSAGE = "We couldn't connect your wallet. Please try again or check if your wallet is unlocked.";
+
+/**
+ * Full-page "Connection Failed" screen — reached when connecting or generating
+ * the wallet doesn't go through. Says why when it knows (the connecting screen
+ * records the reason in the flow store).
+ */
 function WalletFailed() {
+	const hydrated = useStoreHydrated(useWalletFlowStore.persist);
+	const reason = useWalletFlowStore((state) => state.error);
+
 	return (
 		<div className="relative flex min-h-dvh flex-col overflow-hidden bg-primary-100/10 px-5 py-6 sm:px-10 lg:py-5 lg:pr-15 lg:pl-20">
 			<span aria-hidden="true" className="pointer-events-none absolute -bottom-44 -left-40 size-96 rounded-full bg-danger-100/30" />
@@ -43,7 +56,7 @@ function WalletFailed() {
 				<div className="flex flex-col items-center gap-3">
 					<h1 className="text-h4 font-medium text-foreground md:text-4xl">Connection Failed</h1>
 					<p className="max-w-md text-b3 text-neutral-500 md:text-b1">
-						We couldn&apos;t connect your wallet. Please try again or check if your wallet is unlocked.
+						{hydrated && reason ? reason : DEFAULT_MESSAGE}
 					</p>
 				</div>
 

@@ -11,6 +11,15 @@ interface TagInputProps
 	onChange: (value: string[]) => void;
 	/** Options offered in a dropdown as you focus/type; picking one adds it. Anything typed can still be added. */
 	suggestions?: string[];
+	/**
+	 * Default `true`: anything typed can become a tag. Set `false` for a field
+	 * backed by a fixed catalog: then only the `suggestions` can be added — typed
+	 * text becomes a tag only if it matches one (ignoring case, and adopting the
+	 * suggestion's own spelling), and text that matches none is dropped on blur.
+	 */
+	allowCustom?: boolean;
+	/** With `allowCustom={false}`: shown under the field when what's typed matches nothing in `suggestions`. */
+	noMatchText?: string;
 	/** Most tags allowed; the field stops accepting more once reached. */
 	maxTags?: number;
 	/** Extra classes for the field box. */
@@ -31,6 +40,8 @@ function TagInput({
 	onChange,
 	suggestions = [],
 	maxTags = 15,
+	allowCustom = true,
+	noMatchText = "Nothing matches that. Pick one from the list.",
 	placeholder,
 	disabled,
 	className,
@@ -52,9 +63,22 @@ function TagInput({
 		.filter((suggestion) => !has(suggestion) && (!query || suggestion.toLowerCase().includes(query)))
 		.slice(0, 50);
 	const showList = open && options.length > 0;
+	// With a closed catalog, typing narrows the list and the first match is ready to pick with Enter.
+	const effectiveActive = active >= 0 ? active : !allowCustom && query ? 0 : -1;
+	const noMatch = !allowCustom && draft.trim() !== "" && options.length === 0;
 
-	function commit(raw: string) {
+	// With a closed catalog, typed text has to resolve to one of its entries.
+	function resolve(raw: string): string | null {
 		const tag = raw.trim();
+		if (!tag) return null;
+		if (allowCustom) return tag;
+		return suggestions.find((suggestion) => suggestion.toLowerCase() === tag.toLowerCase()) ?? null;
+	}
+
+	function commit(raw: string, { keepUnmatched = false } = {}) {
+		const tag = resolve(raw);
+		// Enter on text that isn't in the catalog leaves it in the box so it's clear nothing happened.
+		if (!tag && keepUnmatched && raw.trim()) return;
 		setDraft("");
 		setActive(-1);
 		if (!tag || atLimit || has(tag)) return;
@@ -70,7 +94,7 @@ function TagInput({
 			const pending = parts.pop() ?? "";
 			const additions: string[] = [];
 			for (const part of parts) {
-				const tag = part.trim();
+				const tag = resolve(part);
 				if (!tag || has(tag) || additions.some((added) => added.toLowerCase() === tag.toLowerCase())) continue;
 				additions.push(tag);
 			}
@@ -88,15 +112,15 @@ function TagInput({
 
 		if (e.key === "Enter") {
 			e.preventDefault();
-			const picked = showList ? options[active] : undefined;
-			commit(picked ?? draft);
+			const picked = showList ? options[effectiveActive] : undefined;
+			commit(picked ?? draft, { keepUnmatched: true });
 		} else if (e.key === "ArrowDown") {
 			e.preventDefault();
 			setOpen(true);
-			setActive((index) => Math.min(index + 1, options.length - 1));
+			setActive(Math.min(effectiveActive + 1, options.length - 1));
 		} else if (e.key === "ArrowUp") {
 			e.preventDefault();
-			setActive((index) => Math.max(index - 1, -1));
+			setActive(Math.max(effectiveActive - 1, -1));
 		} else if (e.key === "Escape") {
 			setOpen(false);
 			setActive(-1);
@@ -141,7 +165,7 @@ function TagInput({
 					aria-expanded={showList}
 					aria-controls={listId}
 					aria-autocomplete="list"
-					aria-activedescendant={showList && active >= 0 ? `${listId}-${active}` : undefined}
+					aria-activedescendant={showList && effectiveActive >= 0 ? `${listId}-${effectiveActive}` : undefined}
 					autoComplete="off"
 					value={draft}
 					disabled={disabled || atLimit}
@@ -163,6 +187,12 @@ function TagInput({
 				/>
 			</div>
 
+			{noMatch && (
+				<p role="status" className="mt-1.5 text-c1 text-neutral-500">
+					{noMatchText}
+				</p>
+			)}
+
 			{showList && (
 				// mouse-down is swallowed so picking an option never blurs the field first.
 				<ul
@@ -176,7 +206,7 @@ function TagInput({
 							key={option}
 							id={`${listId}-${index}`}
 							role="option"
-							aria-selected={index === active}
+							aria-selected={index === effectiveActive}
 							onMouseEnter={() => setActive(index)}
 							onClick={() => commit(option)}
 							className="cursor-pointer rounded-lg px-3 py-2 text-b3 text-foreground aria-selected:bg-primary-100/50"

@@ -5,10 +5,11 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, Di
 import { formatAmount } from "@/lib/format";
 
 /**
- * The frame the job-action dialogs share (Mark as Completed, Reject this Job):
- * a bordered header with title, one line of explanation and a square close
- * button, then the caller's body. `blockDismiss` stops Esc/outside-click while
- * a request is running, so nobody is left guessing whether it went through.
+ * The frame the job-action dialogs share (Mark as Completed, Fund escrow,
+ * Release payment, Raise a dispute): a bordered header with title, one line of
+ * explanation and a square close button, then the caller's body. `blockDismiss`
+ * stops Esc/outside-click while a request is running, so nobody is left
+ * guessing whether it went through.
  */
 function JobDialog({
 	open,
@@ -51,15 +52,17 @@ function JobDialog({
 	);
 }
 
-/** The lavender "which job is this" card at the top of a job dialog: title and client on the left, amount on the right. */
-function JobSummary({ title, clientName, amount, asset }: { title: string; clientName: string; amount: number; asset: string }) {
+/** The lavender "which job is this" card at the top of a job dialog: title (and client, when known) on the left, amount on the right. */
+function JobSummary({ title, clientName, amount, asset }: { title: string; clientName?: string; amount: number; asset: string }) {
 	return (
 		<div className="flex items-start justify-between gap-4 rounded-2xl bg-primary-100/30 p-4 sm:rounded-3xl sm:p-6">
 			<div className="flex min-w-0 flex-col gap-2 sm:gap-3">
 				<p className="truncate text-s1 font-medium text-foreground sm:text-xl sm:font-medium">{title}</p>
-				<p className="text-b3 text-neutral-500 sm:text-b1">
-					Client: <span className="text-foreground">{clientName}</span>
-				</p>
+				{clientName && (
+					<p className="text-b3 text-neutral-500 sm:text-b1">
+						Client: <span className="text-foreground">{clientName}</span>
+					</p>
+				)}
 			</div>
 			<div className="flex shrink-0 flex-col items-end gap-1 sm:gap-2">
 				<span className="text-b3 text-foreground sm:text-b1">Amount</span>

@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { Search } from "lucide-react";
 import { Logo } from "@repo/ui/logo";
 import { DashboardNav } from "@/features/dashboard/components/DashboardNav";
 import { DASHBOARD_CONFIG, type DashboardRole } from "@/features/dashboard/config";
 import { HeaderBackButton } from "@/features/dashboard/components/HeaderBackButton";
+import { HeaderSearch } from "@/features/dashboard/components/HeaderSearch";
 import { MobileNav } from "@/features/dashboard/components/MobileNav";
-import { NotificationBell, UserAvatar } from "@/features/dashboard/components/HeaderActions";
-import { MOCK_PROVIDER } from "@/lib/mock/providerDashboard";
+import { HeaderUser, NotificationBell } from "@/features/dashboard/components/HeaderActions";
 
 /**
  * Dashboard frame (provider or client — `role` picks the menu), in the design's floating-card style: from `lg` the
@@ -38,25 +37,9 @@ function DashboardShell({ role, children }: { role: DashboardRole; children: Rea
 						</div>
 						<MobileNav role={role} />
 						<div className="hidden h-full w-164 items-center gap-6 rounded-3xl border border-border bg-white px-7.5 lg:flex">
-							<label className="relative flex-1">
-								<span className="sr-only">Search</span>
-								<Search
-									className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-neutral-400"
-									aria-hidden="true"
-								/>
-								<input
-									type="search"
-									placeholder="Search"
-									className="h-12 w-full rounded-lg bg-muted pr-4 pl-11 text-b3 text-foreground outline-none placeholder:text-neutral-500 focus-visible:ring-2 focus-visible:ring-primary-300"
-								/>
-							</label>
+							<HeaderSearch role={role} />
 							<NotificationBell className="size-14" />
-							<div className="flex items-center gap-3">
-								<UserAvatar className="size-10" />
-								<span className="text-b2 whitespace-nowrap text-foreground">
-									{MOCK_PROVIDER.firstName} {MOCK_PROVIDER.lastName}
-								</span>
-							</div>
+							<HeaderUser />
 						</div>
 					</div>
 				</div>

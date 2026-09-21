@@ -1,55 +1,84 @@
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@repo/ui/sonner";
+import { SESSION_KEY } from "@/features/auth/hooks/useSession";
+import { axiosPublic } from "@/lib/config/axios";
+import { apiRoutes } from "@/lib/config/apiRoutes";
 import { getApiErrorMessage } from "@/lib/api/errorMessage";
-import { simulatedApiError, simulateRequest } from "@/lib/simulation";
-import { useMockSessionStore } from "@/lib/stores/mockSessionStore";
+import { useAuthStore } from "@/lib/stores/authStore";
 import { useSignUpFlowStore } from "@/lib/stores/signUpFlowStore";
+import type { ApiSuccessResponse, AuthTokensData } from "@/lib/api/types";
 import type { VerifyOtpValues } from "@/lib/validations/authValidations";
 
-/**
- * SIMULATED — not wired to `POST /auth/verify-otp` yet. Any 6-digit code
- * succeeds except `000000`, which fails so the error state can be exercised.
- * To go live: swap the `mutationFn` body for
- * `axiosPublic.post(apiRoutes.auth.VERIFY_OTP, { email, otp: values.code })`,
- * store the returned tokens with `useAuthStore.setTokens`, and route by role.
- */
-const INVALID_CODE = "000000";
+/** Thrown when the OTP screen is opened with no email in the sign-up flow (a direct visit or a cleared tab). */
+class MissingEmailError extends Error {
+	constructor() {
+		super("No email in the sign-up flow");
+	}
+}
 
+/**
+ * `POST /auth/verify-otp` `{ email, otp }` — activates the account and returns
+ * `{ access_token, refresh_token, user }`, which is the first real session:
+ * tokens go into the cookie store, the user into the session cache, and the
+ * "verified" screen is shown for the role the backend reports (not the one
+ * remembered from sign-up). 10 attempts per 15 minutes per IP.
+ */
 function useVerifyOtp() {
 	const router = useRouter();
-	const resetFlow = useSignUpFlowStore((state) => state.reset);
+	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (values: VerifyOtpValues) =>
-			simulateRequest(
-				values.code === INVALID_CODE ? simulatedApiError(400, "Invalid or expired OTP") : true,
-			),
-		onSuccess: () => {
-			// Read before resetting; a direct visit (no stored role) previews the provider version.
-			const role = useSignUpFlowStore.getState().role ?? "PROVIDER";
-			resetFlow();
-			// Mock session only — with real auth the verify response's tokens/user are the session.
-			useMockSessionStore.getState().setRole(role);
-			router.push(`/auth/verified?role=${role.toLowerCase()}`);
+		meta: { action: "auth.verify-otp" },
+		mutationFn: async (values: VerifyOtpValues) => {
+			const email = useSignUpFlowStore.getState().email;
+			if (!email) throw new MissingEmailError();
+			const { data } = await axiosPublic.post<ApiSuccessResponse<AuthTokensData>>(apiRoutes.auth.VERIFY_OTP, {
+				email,
+				otp: values.code,
+			});
+			return data.data;
+		},
+		onSuccess: (session) => {
+			useAuthStore.getState().setTokens(session);
+			queryClient.setQueryData(SESSION_KEY, session.user);
+			useSignUpFlowStore.getState().reset();
+			router.push(`/auth/verified?role=${session.user.role.toLowerCase()}`);
 		},
 		onError: (error) => {
-			toast.error(getApiErrorMessage(error));
+			toast.error(
+				error instanceof MissingEmailError
+					? "We lost track of your email. Please sign up again."
+					: getApiErrorMessage(error, undefined, {
+							400: "That code is invalid or has expired. Check it, or request a new one.",
+							404: "We couldn't find an account for that email. Please sign up again.",
+						}),
+			);
 		},
 	});
 }
 
-/** SIMULATED — the real call is `POST /auth/resend-otp` with `{ email }`. */
+/** `POST /auth/resend-otp` `{ email }` — always answers 200 (so it can't be used to probe which emails exist); 3 per 15 minutes per IP. */
 function useResendOtp() {
 	return useMutation({
-		mutationFn: () => simulateRequest(true, 700),
+		meta: { action: "auth.resend-otp" },
+		mutationFn: async () => {
+			const email = useSignUpFlowStore.getState().email;
+			if (!email) throw new MissingEmailError();
+			await axiosPublic.post(apiRoutes.auth.RESEND_OTP, { email });
+			return { email };
+		},
 		onSuccess: () => {
 			toast.success("A new code has been sent to your email");
 		},
 		onError: (error) => {
-			toast.error(getApiErrorMessage(error));
+			toast.error(
+				error instanceof MissingEmailError
+					? "We lost track of your email. Please sign up again."
+					: getApiErrorMessage(error),
+			);
 		},
 	});
 }
 
-export { useVerifyOtp, useResendOtp };
+export { useResendOtp, useVerifyOtp };

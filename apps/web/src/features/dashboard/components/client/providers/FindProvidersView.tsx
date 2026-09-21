@@ -1,51 +1,61 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, SlidersHorizontal, UserSearch } from "lucide-react";
 import { Button } from "@repo/ui/button";
 import { EmptyState } from "@repo/ui/empty-state";
 import { Pagination } from "@repo/ui/pagination";
+import { Skeleton } from "@repo/ui/skeleton";
 import { toast } from "@repo/ui/sonner";
+import { QueryError } from "@/components/QueryState";
 import { FilterPill } from "@/features/dashboard/components/client/providers/FilterPill";
 import { ProviderCard } from "@/features/dashboard/components/client/providers/ProviderCard";
-import { CATEGORY_OPTIONS, LOCATION_OPTIONS, MOCK_PROVIDERS, RATING_OPTIONS } from "@/lib/mock/providers";
+import { PROVIDERS_PAGE_SIZE, useProviderSearch } from "@/features/providers/hooks/useProviders";
+import { useSkills } from "@/features/provider/hooks/useProviderProfile";
+import { COUNTRIES } from "@/lib/mock/locations";
 
-const PAGE_SIZE = 6;
+const COUNTRY_OPTIONS = COUNTRIES.map(([code, name]) => ({ value: code, label: name }));
+const RATINGS = [
+	{ value: "4.5", label: "4.5 & up" },
+	{ value: "4", label: "4.0 & up" },
+	{ value: "3.5", label: "3.5 & up" },
+];
 
-const LOCATIONS = LOCATION_OPTIONS.map((place) => ({ value: place, label: place }));
-const RATINGS = RATING_OPTIONS.map((option) => ({ value: String(option.value), label: option.label }));
+/** The text box waits for a pause in typing before it searches, so each keystroke isn't a request. */
+function useDebounced(value: string, ms = 350) {
+	const [debounced, setDebounced] = useState(value);
+	useEffect(() => {
+		const timer = setTimeout(() => setDebounced(value), ms);
+		return () => clearTimeout(timer);
+	}, [value, ms]);
+	return debounced;
+}
 
 /**
- * Client-side provider search: a text box plus category / location / rating
- * chips, filtering a mock list of 128 as you type. Text matches name, trade and
- * location. The trailing "Filter" chip is for filters that aren't designed yet
- * (it says so). The results count is visible on phones only, as in the mocks,
- * and announced to screen readers everywhere. Real data would come from
- * `GET /providers/discover` (which takes skill/location/rating filters — not
- * checked against the spec yet).
+ * Provider search on the real directory (`GET /providers/discover`, see
+ * `useProviderSearch`): a text box (matches skills and city — the backend can't search names), a
+ * skill chip (the backend's skill catalog), a country chip and a minimum-rating
+ * chip. Filters and paging are server-side; any change goes back to page 1. The
+ * results count is visible on phones only (as in the mocks) and announced to
+ * screen readers everywhere. The trailing "Filter" chip has no design — it says
+ * so.
  */
-function FindProvidersView() {
-	const [query, setQuery] = useState("");
-	const [category, setCategory] = useState("");
-	const [location, setLocation] = useState("");
+function FindProvidersView({ initialQuery = "" }: { initialQuery?: string }) {
+	const [query, setQuery] = useState(initialQuery);
+	const [skill, setSkill] = useState("");
+	const [country, setCountry] = useState("");
 	const [rating, setRating] = useState("");
 	const [page, setPage] = useState(1);
 
-	const needle = query.trim().toLowerCase();
-	const matching = MOCK_PROVIDERS.filter(
-		(provider) =>
-			(!needle ||
-				provider.name.toLowerCase().includes(needle) ||
-				provider.headline.toLowerCase().includes(needle) ||
-				provider.location.toLowerCase().includes(needle)) &&
-			(!category || provider.category === category) &&
-			(!location || provider.location === location) &&
-			(!rating || provider.rating >= Number(rating)),
-	);
-	const pageCount = Math.max(1, Math.ceil(matching.length / PAGE_SIZE));
-	const start = (page - 1) * PAGE_SIZE;
-	const providers = matching.slice(start, start + PAGE_SIZE);
-	const filtered = Boolean(needle || category || location || rating);
+	const text = useDebounced(query);
+	const skills = useSkills();
+	const results = useProviderSearch({ text, skill, country, minRating: rating, page });
+
+	const skillOptions = (skills.data ?? []).map((item) => ({ value: item.slug, label: item.name }));
+	const total = results.data?.total ?? 0;
+	const pageCount = Math.max(1, Math.ceil(total / PROVIDERS_PAGE_SIZE));
+	const items = results.data?.items ?? [];
+	const filtered = Boolean(query.trim() || skill || country || rating);
 
 	// Any change to what's being searched goes back to the first page.
 	function update<T>(set: (value: T) => void) {
@@ -57,8 +67,8 @@ function FindProvidersView() {
 
 	function clearAll() {
 		setQuery("");
-		setCategory("");
-		setLocation("");
+		setSkill("");
+		setCountry("");
 		setRating("");
 		setPage(1);
 	}
@@ -78,17 +88,14 @@ function FindProvidersView() {
 				className="flex gap-3 md:rounded-2xl md:border md:border-border md:bg-white md:p-4 md:shadow-[0_4px_24px_rgb(0_0_0/0.04)]"
 			>
 				<label className="relative flex-1">
-					<span className="sr-only">Search by skill, location or provider name</span>
-					<Search
-						className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-neutral-500"
-						aria-hidden="true"
-					/>
+					<span className="sr-only">Search by skill or city</span>
+					<Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-neutral-500" aria-hidden="true" />
 					<input
 						type="search"
 						value={query}
 						onChange={(event) => update(setQuery)(event.target.value)}
-						placeholder="Search providers…"
-						className="h-13 w-full rounded-2xl border border-neutral-300 bg-white pr-4 pl-12 text-b3 text-foreground outline-none placeholder:text-neutral-500 focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-200 md:h-12 md:rounded-xl md:max-w-md md:placeholder:text-transparent"
+						placeholder="Search by skill or city…"
+						className="h-13 w-full rounded-2xl border border-neutral-300 bg-white pr-4 pl-12 text-b3 text-foreground outline-none placeholder:text-neutral-500 focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-200 md:h-12 md:max-w-md md:rounded-xl md:placeholder:text-transparent"
 					/>
 					{/* The longer prompt fits on desktop only. */}
 					{!query && (
@@ -96,7 +103,7 @@ function FindProvidersView() {
 							aria-hidden="true"
 							className="pointer-events-none absolute top-1/2 left-12 hidden -translate-y-1/2 text-b3 text-neutral-500 md:block"
 						>
-							Search by skill, location or provider name…
+							Search by skill or city…
 						</span>
 					)}
 				</label>
@@ -106,15 +113,8 @@ function FindProvidersView() {
 			</form>
 
 			<div className="flex flex-wrap items-center gap-3">
-				<FilterPill
-					label="Category"
-					placeholder="All Categories"
-					value={category}
-					onChange={update(setCategory)}
-					options={CATEGORY_OPTIONS}
-					alwaysActive
-				/>
-				<FilterPill label="Location" placeholder="Location" value={location} onChange={update(setLocation)} options={LOCATIONS} />
+				<FilterPill label="Skill" placeholder="All Skills" value={skill} onChange={update(setSkill)} options={skillOptions} alwaysActive />
+				<FilterPill label="Country" placeholder="Location" value={country} onChange={update(setCountry)} options={COUNTRY_OPTIONS} />
 				<FilterPill label="Minimum rating" placeholder="Rating" value={rating} onChange={update(setRating)} options={RATINGS} />
 				<button
 					type="button"
@@ -127,14 +127,24 @@ function FindProvidersView() {
 			</div>
 
 			<p aria-live="polite" className="text-b1 text-neutral-500 lg:sr-only">
-				{matching.length} {matching.length === 1 ? "provider" : "providers"} found
+				{results.data ? `${total} ${total === 1 ? "provider" : "providers"} found` : " "}
 			</p>
 
-			{providers.length === 0 ? (
+			{results.isPending ? (
+				<ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 lg:gap-7.5" aria-busy="true" aria-label="Loading providers">
+					{Array.from({ length: PROVIDERS_PAGE_SIZE }, (_, index) => (
+						<li key={index}>
+							<Skeleton className="h-52 w-full rounded-3xl" />
+						</li>
+					))}
+				</ul>
+			) : results.isError ? (
+				<QueryError message="We couldn't load providers." onRetry={() => void results.refetch()} />
+			) : items.length === 0 ? (
 				<EmptyState
 					icon={UserSearch}
 					title="No providers found"
-					description="Try a different search, or clear the filters."
+					description={filtered ? "Try a different search, or clear the filters." : "No providers have joined yet. Check back soon."}
 					action={
 						filtered && (
 							<Button type="button" variant="outline" size="medium" onClick={clearAll}>
@@ -144,8 +154,10 @@ function FindProvidersView() {
 					}
 				/>
 			) : (
-				<ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 lg:gap-7.5">
-					{providers.map((provider) => (
+				<ul
+					className={`grid gap-5 transition-opacity sm:grid-cols-2 xl:grid-cols-3 lg:gap-7.5 ${results.isPlaceholderData ? "opacity-60" : ""}`}
+				>
+					{items.map((provider) => (
 						<li key={provider.id} className="flex">
 							<ProviderCard provider={provider} />
 						</li>
@@ -153,10 +165,10 @@ function FindProvidersView() {
 				</ul>
 			)}
 
-			{matching.length > 0 && (
+			{items.length > 0 && (
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<p className="text-c1 text-neutral-500 lg:text-b3">
-						Showing {providers.length} of {matching.length} entries
+						Showing {items.length} of {total} entries
 					</p>
 					<Pagination page={page} pageCount={pageCount} onPageChange={changePage} />
 				</div>

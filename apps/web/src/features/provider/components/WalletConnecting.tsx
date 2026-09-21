@@ -1,43 +1,41 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { simulatedApiError, simulateRequest } from "@/lib/simulation";
+import { useConnectWallet, walletErrorMessage } from "@/features/provider/hooks/useWallet";
 import { useWalletFlowStore } from "@/lib/stores/walletFlowStore";
 import { useStoreHydrated } from "@/hooks/useStoreHydrated";
 
-/** A key ending in this fails to connect, so the "Connection Failed" screen can be reached in the simulation. */
-const FAIL_SUFFIX = "ZZZZZ";
-
 /**
- * SIMULATED — waits a couple of seconds, then moves on to the connected screen
- * (or the failed one for a key ending in `ZZZZZ`). The real work goes here: for
- * a pasted key, `POST /wallet/link/challenge` → have the wallet sign it →
- * `POST /wallet/link/verify`; for a generated wallet, `POST /wallet/me/bootstrap`.
+ * Does the actual wallet work while the spinner shows: generating the custodial
+ * wallet, or linking the one the provider entered (see `useConnectWallet`). On
+ * success it moves to the connected screen; on failure it records why in the
+ * flow store and moves to the failed screen. Guarded so React's dev-mode double
+ * effect can't fire the requests twice.
  */
 function WalletConnecting() {
 	const router = useRouter();
 	const hydrated = useStoreHydrated(useWalletFlowStore.persist);
+	const connect = useConnectWallet();
+	const started = useRef(false);
 
 	useEffect(() => {
-		if (!hydrated) return;
-		let cancelled = false;
-		const { publicKey } = useWalletFlowStore.getState();
+		if (!hydrated || started.current) return;
+		started.current = true;
+		const { mode, publicKey } = useWalletFlowStore.getState();
 
-		simulateRequest(
-			publicKey.endsWith(FAIL_SUFFIX) ? simulatedApiError(400, "Could not connect the wallet") : true,
-			2600,
-		)
-			.then(() => {
-				if (!cancelled) router.replace("/provider/wallet/connected");
-			})
-			.catch(() => {
-				if (!cancelled) router.replace("/provider/wallet/failed");
-			});
-
-		return () => {
-			cancelled = true;
-		};
+		connect.mutate(
+			{ mode, publicKey },
+			{
+				onSuccess: () => router.replace("/provider/wallet/connected"),
+				onError: (error) => {
+					useWalletFlowStore.getState().fail(walletErrorMessage(error));
+					router.replace("/provider/wallet/failed");
+				},
+			},
+		);
+		// `connect` is stable enough for a run-once effect; re-running would repeat the requests.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [hydrated, router]);
 
 	return (

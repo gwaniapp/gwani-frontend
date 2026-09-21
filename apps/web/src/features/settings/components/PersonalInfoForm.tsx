@@ -8,7 +8,7 @@ import { cn } from "@repo/ui/lib/utils";
 import { FORM_STYLES, FormActions, type FormLayout } from "@/features/settings/components/formParts";
 import { useUpdateProfile } from "@/features/settings/hooks/useSettings";
 import { SUPPORT_EMAIL } from "@/lib/site";
-import { MOCK_ACCOUNT } from "@/lib/mock/account";
+import { useCurrentUser } from "@/features/auth/hooks/useSession";
 import { profileSchema, type ProfileValues } from "@/lib/validations/settingsValidations";
 
 /**
@@ -19,7 +19,8 @@ import { profileSchema, type ProfileValues } from "@/lib/validations/settingsVal
  */
 function PersonalInfoForm({ layout, onDone }: { layout: FormLayout; onDone?: () => void }) {
 	const styles = FORM_STYLES[layout];
-	const saved: ProfileValues = { firstName: MOCK_ACCOUNT.firstName, lastName: MOCK_ACCOUNT.lastName };
+	const { user } = useCurrentUser();
+	const saved: ProfileValues = { firstName: user?.first_name ?? "", lastName: user?.last_name ?? "" };
 	const form = useForm<ProfileValues>({ resolver: zodResolver(profileSchema), defaultValues: saved });
 	const update = useUpdateProfile();
 
@@ -70,7 +71,7 @@ function PersonalInfoForm({ layout, onDone }: { layout: FormLayout; onDone?: () 
 					<label htmlFor={`email-${layout}`} className={cn("font-medium text-foreground", styles.label)}>
 						Email Address
 					</label>
-					<Input id={`email-${layout}`} type="email" value={MOCK_ACCOUNT.email} readOnly disabled className={styles.field} />
+					<Input id={`email-${layout}`} type="email" value={user?.email ?? ""} readOnly disabled className={styles.field} />
 					<p className="text-c1 text-neutral-500">
 						To change your email, contact{" "}
 						<a href={`mailto:${SUPPORT_EMAIL}`} className="text-primary-500 underline-offset-4 hover:underline">
