@@ -15,8 +15,9 @@ export interface WorkHistoryItem {
 	id: string;
 	title: string;
 	clientName?: string;
-	amount: number;
-	asset: string;
+	/** Absent on a public provider's history (`job_history` carries no price). */
+	amount?: number;
+	asset?: string;
 	date: string;
 	status: JobStatus;
 }
@@ -27,7 +28,7 @@ export interface WorkHistoryItem {
  * same markup does both — the labels and the phone-only client row are just
  * hidden at `lg`. The pager only shows below `lg`, as in the mocks.
  */
-function WorkHistory({ jobs: allJobs, viewAllHref }: { jobs: WorkHistoryItem[]; viewAllHref: string }) {
+function WorkHistory({ jobs: allJobs, viewAllHref }: { jobs: WorkHistoryItem[]; viewAllHref?: string }) {
 	const [page, setPage] = useState(1);
 
 	const pageCount = Math.max(1, Math.ceil(allJobs.length / PAGE_SIZE));
@@ -41,15 +42,17 @@ function WorkHistory({ jobs: allJobs, viewAllHref }: { jobs: WorkHistoryItem[]; 
 					<h2 id="work-history" className="text-xl font-medium text-foreground">
 						Work History
 					</h2>
-					<p className="text-b3 text-neutral-500 lg:text-b1">{allJobs.length} completed jobs</p>
+					<p className="text-b3 text-neutral-500 lg:text-b1">{allJobs.length} completed {allJobs.length === 1 ? "job" : "jobs"}</p>
 				</div>
-				<Link
-					href={viewAllHref}
-					className="inline-flex items-center gap-2 text-b3 text-primary-500 outline-none hover:underline focus-visible:underline lg:text-b1 lg:font-normal"
-				>
-					View all
-					<ArrowRight className="size-4 lg:size-5" aria-hidden="true" />
-				</Link>
+				{viewAllHref && (
+					<Link
+						href={viewAllHref}
+						className="inline-flex items-center gap-2 text-b3 text-primary-500 outline-none hover:underline focus-visible:underline lg:text-b1 lg:font-normal"
+					>
+						View all
+						<ArrowRight className="size-4 lg:size-5" aria-hidden="true" />
+					</Link>
+				)}
 			</div>
 
 			{allJobs.length === 0 && <p className="text-b3 text-neutral-500 lg:text-b1">Finished jobs will show up here.</p>}
@@ -71,8 +74,14 @@ function WorkHistory({ jobs: allJobs, viewAllHref }: { jobs: WorkHistoryItem[]; 
 							<div className="flex items-baseline justify-between gap-4">
 								<span className="text-foreground lg:hidden">Amount</span>
 								<span className="text-foreground">
-									<span className="lg:hidden">+ </span>
-									{formatAmount(job.amount, job.asset)}
+									{job.amount === undefined ? (
+										"—"
+									) : (
+										<>
+											<span className="lg:hidden">+ </span>
+											{formatAmount(job.amount, job.asset ?? "USDC")}
+										</>
+									)}
 								</span>
 							</div>
 

@@ -9,8 +9,8 @@ import type { DashboardJob } from "@/lib/jobs";
  * the title and the "View" button share the top row, with amount, posted date
  * and status stacked underneath; from `md` it's three columns — details, status,
  * and the button. The whole card is the link (the "View" button is part of it,
- * not a second link). The backend's job doesn't carry the provider's name,
- * category or location, so the card shows what it has: title, amount, date, status.
+ * not a second link). It shows the title, amount, posted (and due) date, the
+ * assigned provider's name and place once one is chosen, and the status.
  */
 function ClientJobCard({ job }: { job: DashboardJob }) {
 	return (
@@ -23,7 +23,18 @@ function ClientJobCard({ job }: { job: DashboardJob }) {
 			<p className="mt-1 text-b2 font-medium text-foreground [grid-area:amount] md:mt-0 md:text-b1 md:font-medium">
 				{formatAmount(job.priceAmount, job.priceAsset)}
 			</p>
-			<p className="text-b3 text-foreground [grid-area:posted] md:text-b1">Posted {formatDate(job.date)}</p>
+			<div className="flex flex-col gap-0.5 text-b3 text-foreground [grid-area:posted] md:text-b1">
+				<p>
+					Posted {formatDate(job.date)}
+					{job.dueDate ? ` · Due ${formatDate(job.dueDate)}` : ""}
+				</p>
+				{job.person && (
+					<p className="truncate text-neutral-600">
+						{job.person}
+						{job.place ? ` · ${job.place}` : ""}
+					</p>
+				)}
+			</div>
 
 			<JobStatusBadge
 				status={job.status}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Calendar, CircleDollarSign } from "lucide-react";
+import { ArrowRight, Calendar, CircleDollarSign, User } from "lucide-react";
 import { JobStatusBadge } from "@repo/ui/job-status-badge";
 import { formatAmount, formatDate } from "@/lib/format";
 import type { DashboardJob } from "@/lib/jobs";
@@ -8,8 +8,8 @@ import type { DashboardJob } from "@/lib/jobs";
  * One row of the provider's jobs list. A grid so the same markup can be the
  * phone layout (status top-right, arrow beside the price) and the desktop one
  * (status and arrow centred on the right). Type is deliberately small (16/14/
- * 12px on phones, 18/16/14px from `md`) so a card stays compact. The backend's
- * job has no client name or location, so the meta row is just the posted date.
+ * 12px on phones, 18/16/14px from `md`) so a card stays compact. The meta row is
+ * the posted date, the client's name and, when set, the due date.
  */
 function JobCard({ job }: { job: DashboardJob }) {
 	return (
@@ -29,9 +29,18 @@ function JobCard({ job }: { job: DashboardJob }) {
 				{formatAmount(job.priceAmount, job.priceAsset)}
 			</p>
 
-			<p className="flex items-center gap-1.5 text-c1 text-foreground [grid-area:meta] md:text-b3">
-				<Calendar className="size-3.5 shrink-0 text-neutral-500 md:size-4" aria-hidden="true" />
-				<span>Posted {formatDate(job.date)}</span>
+			<p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-c1 text-foreground [grid-area:meta] md:text-b3">
+				<span className="inline-flex items-center gap-1.5">
+					<Calendar className="size-3.5 shrink-0 text-neutral-500 md:size-4" aria-hidden="true" />
+					Posted {formatDate(job.date)}
+				</span>
+				{job.person && (
+					<span className="inline-flex min-w-0 items-center gap-1.5">
+						<User className="size-3.5 shrink-0 text-neutral-500 md:size-4" aria-hidden="true" />
+						<span className="truncate">{job.person}</span>
+					</span>
+				)}
+				{job.dueDate && <span>Due {formatDate(job.dueDate)}</span>}
 			</p>
 
 			<ArrowRight

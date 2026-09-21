@@ -11,7 +11,7 @@ import { initials } from "@/lib/format";
 
 const CARD = "rounded-3xl bg-white p-5 shadow-[0_4px_24px_rgb(0_0_0/0.06)] lg:min-h-60";
 
-/** Avatar (initials — no photo asset yet), name, trade, location, wallet tag and star rating. */
+/** Avatar (the profile picture when there is one, else initials), name, trade, location, wallet tag and star rating. */
 function ProfileIdentity({
 	name,
 	headline,
@@ -19,6 +19,7 @@ function ProfileIdentity({
 	rating,
 	jobsDone,
 	walletVerified,
+	avatarUrl,
 }: {
 	name: string;
 	/** What they do — omitted when unknown (the backend has no trade field; the first skill is used). */
@@ -27,6 +28,8 @@ function ProfileIdentity({
 	rating: number;
 	jobsDone: number;
 	walletVerified?: boolean;
+	/** The person's own profile picture (only known for the signed-in user; someone else's has no public URL). */
+	avatarUrl?: string | null;
 }) {
 	const [first = "", ...rest] = name.split(" ");
 
@@ -34,9 +37,10 @@ function ProfileIdentity({
 		<div className="flex items-start gap-4 lg:gap-8">
 			<span
 				aria-hidden="true"
-				className="flex size-24 shrink-0 items-center justify-center rounded-full bg-primary-100 text-h4 text-primary-600 lg:size-45 lg:text-h2 lg:font-semibold"
+				style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
+				className="flex size-24 shrink-0 items-center justify-center rounded-full bg-primary-100 bg-cover bg-center text-h4 text-primary-600 lg:size-45 lg:text-h2 lg:font-semibold"
 			>
-				{initials(first, rest.at(-1) ?? "")}
+				{avatarUrl ? null : initials(first, rest.at(-1) ?? "")}
 			</span>
 			<div className="flex min-w-0 flex-col items-start gap-2 lg:gap-3 lg:pt-3">
 				<h2 className="text-xl font-medium text-foreground lg:text-h5">{name}</h2>

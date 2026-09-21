@@ -1,8 +1,8 @@
+import { isAxiosError } from "axios";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { toast } from "@repo/ui/sonner";
 import { WALLET_KEY } from "@/features/provider/hooks/useWallet";
 import { getApiErrorMessage } from "@/lib/api/errorMessage";
-import { readCursorPage } from "@/lib/api/pagination";
 import { apiRoutes } from "@/lib/config/apiRoutes";
 import { axiosAuth } from "@/lib/config/axios";
 import { ACTIVE_STATUSES } from "@/lib/jobs";
@@ -18,14 +18,31 @@ const transitionsKey = (id: string) => [...JOBS_KEY, "transitions", id] as const
 const PAGE_SIZE = 50;
 const MAX_PAGES = 10;
 
+/** One row of the dashboard job lists (both roles); the fields that differ by side are optional. */
+interface DashboardJobItem {
+	id: string;
+	title: string;
+	status: Job["status"];
+	price_amount: string;
+	price_asset: string;
+	skill_category?: string | null;
+	due_date?: string | null;
+	created_at: string;
+	client?: Job["client"];
+	provider?: Job["provider"];
+	location?: Job["location"];
+}
+
 /**
- * Every job the signed-in user can see from this side, newest first.
- * `GET /jobs?role=…&limit=50`, following `next_cursor` (up to 10 pages — 500
- * jobs — which is far beyond a proof-of-concept). Providers are also shown
- * `POSTED` jobs (open jobs "available to bid on") by the backend; those aren't
- * *their* jobs, so they're dropped here. The list refreshes itself while any
- * job is mid-flight, since escrow funding and completion change status without
- * the person doing anything.
+ * Every job the signed-in user has on this side, newest first, from the
+ * dashboard job lists — `GET /providers/provider/dashboard/jobs` (a provider's
+ * assigned jobs, each with its **client's name**) and `GET /jobs/client/dashboard/jobs`
+ * (all of a client's jobs, each with the **assigned provider's name and location**,
+ * `null` until one is chosen) — paged 50 at a time up to 10 pages. Rows are shaped
+ * like a `Job` so the screens read them the same way (no `description` — it isn't in
+ * the list). A provider with no profile yet gets a 404 from their endpoint, which is
+ * just "no jobs". The list refreshes itself while any job is mid-flight, since escrow
+ * funding and completion change status without the person doing anything.
  */
 function useJobs(perspective: Perspective, { enabled = true, live = false }: { enabled?: boolean; live?: boolean } = {}) {
 	return useQuery({
@@ -34,19 +51,34 @@ function useJobs(perspective: Perspective, { enabled = true, live = false }: { e
 		// `live` (the Wallet page): never served from cache, and re-fetched every 15s so payments show up as they happen.
 		...(live ? { staleTime: 0, refetchOnMount: "always" as const } : {}),
 		queryFn: async () => {
+			const path = perspective === "provider" ? apiRoutes.providers.DASHBOARD_JOBS : apiRoutes.jobs.CLIENT_DASHBOARD_JOBS;
 			const jobs: Job[] = [];
-			let cursor: string | null = null;
-			for (let page = 0; page < MAX_PAGES; page++) {
-				const response: { data: ApiSuccessResponse<unknown> } = await axiosAuth.get<ApiSuccessResponse<unknown>>(apiRoutes.jobs.BASE, {
-					params: { role: perspective, limit: PAGE_SIZE, ...(cursor ? { cursor } : {}) },
-				});
-				const { items, next }: { items: Job[]; next: string | null } = readCursorPage<Job>(response.data);
-				jobs.push(...items);
-				if (!next) break;
-				cursor = next;
+			try {
+				for (let page = 1; page <= MAX_PAGES; page++) {
+					const { data } = await axiosAuth.get<ApiSuccessResponse<{ items?: DashboardJobItem[]; next_page?: boolean }>>(path, { params: { page, page_size: PAGE_SIZE } });
+					for (const item of data.data.items ?? []) {
+						jobs.push({
+							id: item.id,
+							title: item.title,
+							description: "",
+							status: item.status,
+							price_amount: item.price_amount,
+							price_asset: item.price_asset,
+							skill_category: item.skill_category,
+							due_date: item.due_date,
+							created_at: item.created_at,
+							client: item.client,
+							provider: item.provider,
+							// A provider's own list repeats *their own* location on every row; only a client's rows say where the provider is.
+							location: perspective === "client" ? item.location : undefined,
+						});
+					}
+					if (!data.data.next_page) break;
+				}
+			} catch (error) {
+				if (!(isAxiosError(error) && error.response?.status === 404)) throw error;
 			}
-			const own = perspective === "provider" ? jobs.filter((job) => job.status !== "POSTED") : jobs;
-			return own.sort((a, b) => b.created_at.localeCompare(a.created_at));
+			return jobs.sort((a, b) => b.created_at.localeCompare(a.created_at));
 		},
 		refetchInterval: (query) => (live ? 15_000 : query.state.data?.some((job) => ACTIVE_STATUSES.has(job.status)) ? 30_000 : false),
 	});
@@ -110,6 +142,10 @@ function useMarkCompleted(id: string) {
 	});
 }
 
+/** Shown when a money-moving call fails on the server: retrying blindly could move the money twice. */
+const STUCK_PAYMENT =
+	"We couldn't confirm this payment. It may already have gone through, so please check Recent Transactions on your Wallet page before trying again.";
+
 /** `POST /jobs/{id}/escrow/fund` — the client locks the price into escrow (PROVIDER_SELECTED → FUNDED → IN_PROGRESS). */
 function useFundEscrow(id: string) {
 	return useJobActionFor(id, {
@@ -119,6 +155,10 @@ function useFundEscrow(id: string) {
 		messages: {
 			403: "Only the client who posted this job can fund it.",
 			422: "Your wallet doesn't have enough balance, or isn't set up to hold this asset yet. Set up and fund your wallet, then try again.",
+			// Observed live: the payment was sent to the network and then the server failed to record it, so it may already have left the wallet.
+			500: STUCK_PAYMENT,
+			502: STUCK_PAYMENT,
+			504: STUCK_PAYMENT,
 		},
 	});
 }
@@ -129,7 +169,7 @@ function useReleaseEscrow(id: string) {
 		action: "jobs.release-escrow",
 		path: apiRoutes.escrow.byJobIdRelease,
 		conflict: "This job isn't ready for payment, or it's under dispute.",
-		messages: { 403: "Only the client who posted this job can release the payment." },
+		messages: { 403: "Only the client who posted this job can release the payment.", 500: STUCK_PAYMENT, 502: STUCK_PAYMENT, 504: STUCK_PAYMENT },
 	});
 }
 

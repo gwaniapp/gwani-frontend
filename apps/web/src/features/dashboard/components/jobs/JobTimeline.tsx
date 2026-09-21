@@ -40,7 +40,7 @@ function JobTimeline({ steps }: { steps: TimelineStep[] }) {
 							{step.label}
 						</span>
 						<span className="min-h-5 text-c1 text-neutral-500 md:text-b3">
-							{step.date ? formatDayMonth(step.date) : <span className="sr-only">Not reached yet</span>}
+							{step.date ? formatDayMonth(step.date) : <span className="sr-only">{step.reached ? "Reached" : "Not reached yet"}</span>}
 						</span>
 					</div>
 				</li>

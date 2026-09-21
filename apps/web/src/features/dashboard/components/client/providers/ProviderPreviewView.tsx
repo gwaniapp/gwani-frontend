@@ -9,14 +9,15 @@ import { QueryError } from "@/components/QueryState";
 import { WalletAddressCard } from "@/components/WalletAddressCard";
 import { BackHeader } from "@/features/dashboard/components/BackHeader";
 import { AboutCard, ProfileIdentity, ReputationCard, SkillsCard } from "@/features/dashboard/components/profile/ProfileParts";
+import { WorkHistory } from "@/features/dashboard/components/profile/WorkHistory";
 import { useProvider } from "@/features/providers/hooks/useProviders";
 import { providerHeadline, providerLocation, providerName } from "@/lib/providers";
 
 /**
  * A provider as a client sees them before hiring (`GET /providers/{id}`): the
  * same building blocks as the provider's own profile — reputation, bio,
- * skills, jobs-completed count and the (public) wallet address; there's no
- * public work history. "Hire Provider" opens Post a New Job with this
+ * skills, jobs-completed count, the (public) wallet address and their
+ * recent finished jobs (`job_history`, no prices). "Hire Provider" opens Post a New Job with this
  * provider preselected.
  */
 function ProviderPreviewView({ id }: { id: string }) {
@@ -55,8 +56,9 @@ function ProviderPreviewView({ id }: { id: string }) {
 					headline={providerHeadline(p)}
 					location={providerLocation(p)}
 					rating={rating}
-					jobsDone={p.jobs_completed}
-				/>
+						jobsDone={p.jobs_completed}
+						avatarUrl={p.avatar_url}
+					/>
 				<ReputationCard rating={rating} jobsDone={p.jobs_completed} completedJobs={p.jobs_completed} className="lg:w-72 lg:shrink-0" />
 			</section>
 
@@ -66,6 +68,8 @@ function ProviderPreviewView({ id }: { id: string }) {
 			</div>
 
 			{p.wallet_address && <WalletAddressCard publicKey={p.wallet_address} />}
+
+			<WorkHistory jobs={p.job_history.map((job) => ({ id: job.id, title: job.title, date: job.date, status: job.status }))} />
 
 			<Button asChild size="giant" className="w-full self-center rounded-lg lg:max-w-150">
 				<Link href={`/client/dashboard/jobs/new?provider=${p.id}`}>Hire Provider</Link>

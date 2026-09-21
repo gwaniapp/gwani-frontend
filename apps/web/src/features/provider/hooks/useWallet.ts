@@ -5,7 +5,7 @@ import { apiRoutes } from "@/lib/config/apiRoutes";
 import { axiosAuth } from "@/lib/config/axios";
 import { FreighterError, signWalletChallenge } from "@/lib/freighter";
 import type { WalletMode } from "@/lib/stores/walletFlowStore";
-import type { ApiSuccessResponse, BootstrapWalletData, Wallet, WalletLinkChallengeData } from "@/lib/api/types";
+import type { ApiSuccessResponse, BootstrapWalletData, Wallet, WalletLinkChallengeData, WalletTransaction } from "@/lib/api/types";
 
 const WALLET_KEY = ["wallet", "me"];
 
@@ -34,6 +34,27 @@ function useWallet({ live = false }: { live?: boolean } = {}) {
 	});
 }
 
+/**
+ * `GET /wallet/transactions` — the escrow events that moved money in or out of
+ * *this user's* wallet, newest first (a client: FUND / REFUND; a provider:
+ * RELEASE). Never cached, like the wallet itself; `live` re-fetches every 15s.
+ */
+function useWalletTransactions({ live = false }: { live?: boolean } = {}) {
+	return useQuery({
+		queryKey: [...WALLET_KEY, "transactions"],
+		staleTime: 0,
+		gcTime: 0,
+		refetchOnMount: "always",
+		refetchInterval: live ? 15_000 : false,
+		queryFn: async () => {
+			const { data } = await axiosAuth.get<ApiSuccessResponse<{ items: WalletTransaction[]; total: number }>>(apiRoutes.wallet.TRANSACTIONS, {
+				params: { page: 1, page_size: 20 },
+			});
+			return data.data.items ?? [];
+		},
+	});
+}
+
 type LinkStep = "challenge" | "sign" | "verify";
 
 /** A wallet-link failure tagged with the step it happened in — the same HTTP status means different things at each. */
@@ -54,8 +75,9 @@ function isWalletSetupIncomplete(wallet: Pick<Wallet, "type" | "funded" | "trust
 /**
  * Sets a provider's wallet up, either way:
  *
- * - `generate` → `POST /wallet/me/bootstrap` (idempotent): creates the custodial
- *   wallet, then funds it through friendbot and adds the stablecoin trustline.
+ * - `generate` → the custodial wallet: `POST /wallet/generate` if the account has
+ *   none yet, then `POST /wallet/me/bootstrap` (idempotent) to fund it through
+ *   friendbot and add the stablecoin trustline.
  *   Testnet friendbot is flaky, so a wallet that exists but isn't fully funded
  *   yet is *not* a failure — the wallet screens show a "finish setup" notice
  *   (`isWalletSetupIncomplete`) and calling this again retries the rest.
@@ -71,6 +93,19 @@ function useConnectWallet() {
 		meta: { action: "provider.connect-wallet" },
 		mutationFn: async ({ mode, publicKey }: { mode: WalletMode; publicKey: string }) => {
 			if (mode === "generate") {
+				// A wallet is normally created at signup; `POST /wallet/generate` is only for an account that has none (409 = it does).
+				const hasWallet = await axiosAuth.get(apiRoutes.wallet.ME).then(
+					() => true,
+					(error: unknown) => {
+						if (isAxiosError(error) && error.response?.status === 404) return false;
+						throw error;
+					},
+				);
+				if (!hasWallet) {
+					await axiosAuth.post(apiRoutes.wallet.GENERATE).catch((error: unknown) => {
+						if (!(isAxiosError(error) && error.response?.status === 409)) throw error;
+					});
+				}
 				const { data } = await axiosAuth.post<ApiSuccessResponse<BootstrapWalletData>>(apiRoutes.wallet.BOOTSTRAP);
 				return { mode, complete: Boolean(data.data.funded && data.data.trustline_created) };
 			}
@@ -122,4 +157,4 @@ function walletErrorMessage(error: unknown): string {
 	);
 }
 
-export { isWalletSetupIncomplete, useConnectWallet, useWallet, WALLET_KEY, walletErrorMessage };
+export { isWalletSetupIncomplete, useConnectWallet, useWallet, useWalletTransactions, WALLET_KEY, walletErrorMessage };

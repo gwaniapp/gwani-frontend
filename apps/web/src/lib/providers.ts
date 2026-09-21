@@ -1,5 +1,5 @@
 import { COUNTRY_NAMES } from "@repo/ui/lib/country-names";
-import type { ProviderProfile, Skill, WalletType } from "@/lib/api/types";
+import type { ProviderJob, ProviderProfile, Skill, WalletType } from "@/lib/api/types";
 
 const str = (value: unknown) => (typeof value === "string" ? value : "");
 const num = (value: unknown) => {
@@ -8,30 +8,27 @@ const num = (value: unknown) => {
 };
 
 /**
- * Turns either real provider payload into a `ProviderProfile`. Full profile:
- * `{ user: { id, first_name, last_name, … }, provider: { bio, location_*, … },
- * skills: [{id,slug,name}], wallet_address, wallet_type, location: {…},
- * reputation_score, completed_jobs }`. Directory row: the `provider` fields
- * flattened next to `user_id` (`reputation_score` is a string like "0.00";
- * `completed_jobs_count`). Reads defensively (either nesting, snake_case names
- * from both) so a small backend change doesn't blank the screen.
- *
- * Note the full profile also contains the whole `user` row — including the
- * password hash and email — and is public. Only the fields below are ever read
- * or kept; that leak is the backend's to fix.
+ * Turns any real provider payload into a `ProviderProfile`: the flat full profile
+ * (`{ id, first_name, last_name, profile_picture_url, bio, skills, location: {…},
+ * reputation_score, completed_jobs, job_history, wallet_address, … }`), the search row
+ * (same, without skills/bio) and the directory row (`{ user_id, bio, location_*,
+ * reputation_score: "0.00", completed_jobs_count }`). It also still reads the older
+ * nested full profile (`{ user, provider, … }`). Reads defensively so a small backend
+ * change doesn't blank the screen. Only the fields below are kept.
  */
 export function normalizeProvider(raw: unknown): ProviderProfile {
 	const r = (raw ?? {}) as Record<string, unknown>;
 	const user = (r.user ?? {}) as Record<string, unknown>;
 	const provider = ((r.provider ?? r) as Record<string, unknown>) ?? {};
 	const where = (r.location ?? {}) as Record<string, unknown>;
-	const id = str(user.id) || str(provider.user_id) || str(r.user_id) || str(r.id);
+	const id = str(r.id) || str(user.id) || str(provider.user_id) || str(r.user_id);
+	const history = Array.isArray(r.job_history) ? (r.job_history as Array<Record<string, unknown>>) : [];
 
 	return {
 		id,
 		user_id: id,
-		first_name: str(user.first_name),
-		last_name: str(user.last_name),
+		first_name: str(r.first_name) || str(user.first_name),
+		last_name: str(r.last_name) || str(user.last_name),
 		bio: str(provider.bio),
 		location_country: str(where.country) || str(provider.location_country),
 		location_state: str(where.state) || str(provider.location_state),
@@ -43,7 +40,9 @@ export function normalizeProvider(raw: unknown): ProviderProfile {
 		jobs_completed: num(r.completed_jobs ?? provider.completed_jobs_count),
 		wallet_address: str(r.wallet_address) || undefined,
 		wallet_type: (str(r.wallet_type) as WalletType) || undefined,
-		detailed: Boolean(r.user),
+		avatar_url: str(r.profile_picture_url) || undefined,
+		job_history: history.map((job) => ({ id: str(job.id), title: str(job.title), status: str(job.status) as ProviderJob["status"], date: str(job.date) })),
+		detailed: Array.isArray(r.skills) || Boolean(r.user),
 	};
 }
 
@@ -80,4 +79,15 @@ export function providerLocation(profile: Pick<ProviderProfile, "location_countr
 /** What a provider does, in a word: their first listed skill (the backend has no trade/headline field). */
 export function providerHeadline(profile: Pick<ProviderProfile, "skills">) {
 	return profile.skills[0]?.name ?? "";
+}
+
+/** A `{ country, state, city, area }` location (users, jobs) as "Area, City, State, Country"; empty when nothing is set. */
+export function formatUserLocation(location: { country?: string | null; state?: string | null; city?: string | null; area?: string | null } | null | undefined) {
+	if (!location) return "";
+	return providerLocation({
+		location_country: location.country ?? "",
+		location_state: location.state ?? "",
+		location_city: location.city ?? "",
+		location_area: location.area ?? "",
+	});
 }

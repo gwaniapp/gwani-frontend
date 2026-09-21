@@ -18,8 +18,10 @@ function useSkills() {
 		queryKey: SKILLS_KEY,
 		staleTime: 60 * 60 * 1000,
 		queryFn: async () => {
-			const { data } = await axiosPublic.get<ApiSuccessResponse<Skill[]>>(apiRoutes.skills);
-			return data.data;
+			// Confirmed live: `{ items: [...] }` now (it was a bare array, which is what the spec still says) — accept both.
+			const { data } = await axiosPublic.get<ApiSuccessResponse<Skill[] | { items?: Skill[] }>>(apiRoutes.skills);
+			const payload = data.data;
+			return (Array.isArray(payload) ? payload : (payload?.items ?? [])).map((skill) => ({ id: skill.id, slug: skill.slug, name: skill.name }));
 		},
 	});
 }

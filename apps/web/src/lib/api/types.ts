@@ -50,9 +50,18 @@ export interface User {
 	first_name: string;
 	last_name: string;
 	role: UserRole;
-	verified: boolean;
+	email_verified: boolean;
 	suspended: boolean;
+	/** The user's own location (a client's, or a provider's account-level one); every part is null until set. */
+	location?: UserLocation;
 	created_at: string;
+}
+
+export interface UserLocation {
+	country: string | null;
+	state: string | null;
+	city: string | null;
+	area: string | null;
 }
 
 /** A NestJS global exception filter body — confirmed live. `meta.issues` is
@@ -80,7 +89,12 @@ export type JobStatus =
 	| "DISPUTED"
 	| "CANCELLED";
 
-/** `POST /jobs`, `GET /jobs/{id}`. */
+/**
+ * A job. `GET /jobs` and `POST /jobs` return the flat record (with `client_id` /
+ * `provider_id`); `GET /jobs/{id}` returns a richer one instead — no ids, but the
+ * `client`, the assigned provider's `location` and a status `timeline` (confirmed
+ * live) — so the two sets of fields are optional here.
+ */
 export interface Job {
 	id: string;
 	title: string;
@@ -88,10 +102,21 @@ export interface Job {
 	price_amount: string;
 	price_asset: string;
 	status: JobStatus;
-	client_id: string;
-	provider_id: string | null;
+	client_id?: string;
+	provider_id?: string | null;
+	skill_category?: string | null;
+	/** ISO datetime the client wants the work done by. */
+	due_date?: string | null;
 	created_at: string;
 	updated_at?: string;
+	/** `GET /jobs/{id}` only: the job's client, with their own location. */
+	client?: { id: string; first_name: string; last_name: string; location?: UserLocation };
+	/** The dashboard job lists (client side) only: the assigned provider (their `location` is on the job, below). */
+	provider?: { id: string; first_name: string; last_name: string };
+	/** `GET /jobs/{id}` only: the *assigned provider's* own profile location (null until one is selected) — not the client's, not a place for the job. */
+	location?: UserLocation | null;
+	/** `GET /jobs/{id}` only: one entry per lifecycle step; `date` is null until reached. Observed to leave the *current* step `completed: false`, so use only its dates. */
+	timeline?: Array<{ status: JobStatus; completed: boolean; date: string | null }>;
 }
 
 /** `GET /jobs` — cursor-paginated. Field name inside the envelope's `data`
@@ -150,6 +175,42 @@ export interface Wallet {
 	trustline_created: boolean;
 	/** The wallet's on-chain USDC balance, a decimal string ("10000.0000000"). Added to `GET /wallet/me` after the spec was written. */
 	usdc_balance?: string;
+	/** Locked in escrow for this *provider's* in-flight jobs (funded, not yet released) — not part of `usdc_balance`. Always "0" for a client. */
+	funds_in_escrow?: string;
+}
+
+/** `GET /wallet/transactions` — escrow events that moved money into or out of the user's own wallet. */
+export interface WalletTransaction {
+	id: string;
+	job_id: string;
+	job_title: string;
+	/** Client: FUND (out) / REFUND (in). Provider: RELEASE (in). */
+	type: "FUND" | "REFUND" | "RELEASE";
+	direction: "in" | "out";
+	amount: string;
+	asset: string;
+	/** Observed: "FAILED" for a transaction that was in fact confirmed on-chain (backend bug). Others unobserved. */
+	status: string;
+	tx_hash: string | null;
+	submitted_at: string;
+	confirmed_at: string | null;
+}
+
+/** `GET /providers/provider/dashboard/stats`. */
+export interface ProviderDashboardStats {
+	active_jobs: number;
+	completed_jobs: number;
+	/** Jobs marked COMPLETED and awaiting the client's release — a count, not an amount. */
+	pending_payments: number;
+	reputation_score: string;
+}
+
+/** `GET /jobs/client/dashboard/stats`. */
+export interface ClientDashboardStats {
+	active_jobs: number;
+	completed_jobs: number;
+	/** Sum of the client's PAID jobs, a decimal string. */
+	total_spent: string;
 }
 
 export interface BootstrapWalletData {
@@ -168,13 +229,24 @@ export interface Skill {
 	name: string;
 }
 
+/** One of a provider's recent finished jobs, as `GET /providers/{id}` lists them (`job_history`, up to 10; `date` = when it reached COMPLETED). No price or client. */
+export interface ProviderJob {
+	id: string;
+	title: string;
+	status: JobStatus;
+	date: string;
+}
+
 /**
- * A provider as the app uses it — *normalized* (see `normalizeProvider`) from
- * the backend's two real shapes: the full profile (`GET /providers/{id}`,
- * `GET /providers/me/profile`: `{ user, provider, skills, wallet_address, … }`) and the
- * flat directory row (`GET /providers/discover`: `{ user_id, bio, location_*,
- * reputation_score, completed_jobs_count }`, with **no name and no skills**).
- * Confirmed against live responses — the OpenAPI spec's prose doesn't match.
+ * A provider as the app uses it — *normalized* (see `normalizeProvider`) from the
+ * backend's real shapes (all confirmed live): the full profile (`GET /providers/{id}`
+ * and `/providers/me/profile`, now flat: `{ id, first_name, last_name,
+ * profile_picture_url, bio, wallet_address, wallet_type, skills, skill_category,
+ * reputation_score, completed_jobs, location: {…}, job_history }`; it used to nest a
+ * `user` row that leaked the password hash), the client-only search row
+ * (`GET /providers/search`: names, picture, category, reputation, location — no skills)
+ * and the public directory row (`GET /providers/discover`: `{ user_id, bio, location_*,
+ * reputation_score, completed_jobs_count }` — no name, picture or skills).
  */
 export interface ProviderProfile {
 	/** The provider's *user* id — what `select-provider` and `GET /providers/{id}` take. */
@@ -188,24 +260,19 @@ export interface ProviderProfile {
 	location_state: string;
 	location_city: string;
 	location_area: string;
-	/** Empty when the source doesn't carry skills (the directory list) — fetch the full profile for them. */
+	/** Empty when the source doesn't carry skills (the directory and search lists) — fetch the full profile for them. */
 	skills: Skill[];
 	skill_category: string;
 	reputation: number;
 	jobs_completed: number;
 	wallet_address?: string;
 	wallet_type?: WalletType;
-	/** True once this came from the full profile (names and skills are then real, not just absent). */
+	/** A 7-day presigned URL for their profile picture, when they've uploaded one. */
+	avatar_url?: string;
+	/** Up to 10 recent finished jobs (full profile only; empty otherwise). */
+	job_history: ProviderJob[];
+	/** True once this came from the full profile (skills and bio are then real, not just absent). */
 	detailed: boolean;
-}
-
-export type FileUploadPurpose = "AVATAR" | "JOB_ATTACHMENT";
-
-/** `POST /files/request-upload`. */
-export interface FileUploadUrlData {
-	file_id: string;
-	upload_url: string;
-	expires_at: string;
 }
 
 /** `GET /files/{id}/download-url`. */

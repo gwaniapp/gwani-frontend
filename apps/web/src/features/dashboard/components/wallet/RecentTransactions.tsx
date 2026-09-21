@@ -11,16 +11,24 @@ export interface WalletTransaction {
 	/** Signed: positive is money in, negative is money out. */
 	amount: number;
 	asset: string;
+	status: "completed" | "pending" | "failed";
 }
 
+const STATUS: Record<WalletTransaction["status"], { label: string; className: string }> = {
+	completed: { label: "Completed", className: "lg:bg-success-100 lg:text-success-700" },
+	pending: { label: "Pending", className: "lg:bg-warning-100 lg:text-warning-700" },
+	failed: { label: "Failed", className: "lg:bg-danger-100 lg:text-danger-700" },
+};
+
 /**
- * Recent payments. Money in is green with a "+", money out red with a "−"; the
- * arrow points down-left for incoming and up-right for outgoing. The backend has
- * no wallet-transaction list, so these are the person's *paid jobs* (released
- * escrow), newest first — every one is a completed payment. Dates are absolute
- * (UTC) so the server and browser render the same thing.
+ * Recent transactions (`GET /wallet/transactions`): the escrow events that moved
+ * money into or out of this wallet — a client's fundings and refunds, a
+ * provider's released payments. Money in is green with a "+", money out red with
+ * a "−"; the arrow points down-left for incoming and up-right for outgoing, and
+ * each row carries the backend's own status. Dates are absolute (UTC) so the
+ * server and browser render the same thing.
  */
-function RecentTransactions({ transactions, loading }: { transactions: WalletTransaction[]; loading: boolean }) {
+function RecentTransactions({ transactions, loading, error }: { transactions: WalletTransaction[]; loading: boolean; error?: boolean }) {
 	return (
 		<section aria-labelledby="recent-transactions" className="flex flex-col gap-2 lg:gap-4">
 			<div className="flex items-center justify-between gap-4 lg:px-7.5">
@@ -35,12 +43,17 @@ function RecentTransactions({ transactions, loading }: { transactions: WalletTra
 						<Skeleton key={row} className="h-16 w-full rounded-xl" />
 					))}
 				</div>
+			) : error ? (
+				<p role="alert" className="px-1 py-4 text-b3 text-danger-600 lg:px-7.5 lg:text-b1">
+					We couldn&apos;t load your transactions.
+				</p>
 			) : transactions.length === 0 ? (
-				<p className="px-1 py-4 text-b3 text-neutral-500 lg:px-7.5 lg:text-b1">No payments yet. Released payments will show up here.</p>
+				<p className="px-1 py-4 text-b3 text-neutral-500 lg:px-7.5 lg:text-b1">No transactions yet. Payments into and out of your wallet will show up here.</p>
 			) : (
 				<ul className="flex flex-col divide-y divide-border lg:divide-y-0">
 					{transactions.map((tx) => {
 						const incoming = tx.amount > 0;
+						const status = STATUS[tx.status];
 						return (
 							<li key={tx.id} className="flex items-center gap-3 px-1 py-4 lg:gap-4 lg:px-7.5 lg:py-4.5">
 								<span
@@ -60,7 +73,7 @@ function RecentTransactions({ transactions, loading }: { transactions: WalletTra
 										<span className="sr-only">{incoming ? "Received " : "Sent "}</span>
 										{formatSignedAmount(tx.amount, tx.asset)}
 									</p>
-									<span className="text-c1 text-neutral-500 lg:rounded-full lg:bg-success-100 lg:px-4 lg:py-0.5 lg:text-b3 lg:text-success-700">Completed</span>
+									<span className={cn("text-c1 text-neutral-500 lg:rounded-full lg:px-4 lg:py-0.5 lg:text-b3", status.className)}>{status.label}</span>
 								</div>
 							</li>
 						);

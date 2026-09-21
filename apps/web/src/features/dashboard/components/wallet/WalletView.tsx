@@ -8,28 +8,30 @@ import { WalletAddressCard } from "@/components/WalletAddressCard";
 import { BalanceCard } from "@/features/dashboard/components/wallet/BalanceCard";
 import { RecentTransactions, type WalletTransaction } from "@/features/dashboard/components/wallet/RecentTransactions";
 import { useJobs } from "@/features/jobs/hooks/useJobs";
-import { useConnectWallet, useWallet, walletErrorMessage } from "@/features/provider/hooks/useWallet";
+import { isWalletSetupIncomplete, useConnectWallet, useWallet, useWalletTransactions, walletErrorMessage } from "@/features/provider/hooks/useWallet";
 import { sumPrices } from "@/lib/jobs";
 
 type Role = "provider" | "client";
 
+const TITLES = {
+	FUND: (job: string) => `Escrow funded for ${job}`,
+	REFUND: (job: string) => `Escrow refunded for ${job}`,
+	RELEASE: (job: string) => `Payment received for ${job}`,
+} as const;
+
 /**
  * The wallet page for either role. **What's real:** the address, its type,
  * whether it's funded and the USDC balance (`GET /wallet/me`, shown as "Wallet
- * Balance"). **What's derived:** the backend has no transactions endpoint, so
- * the tiles and the transaction list are worked out from the person's jobs and
- * labelled accordingly —
- *
- * - provider: *Pending Earnings* = finished work waiting for the client to
- *   release, *In Escrow* = locked for work in progress; transactions = PAID jobs;
- * - client: *Awaiting Your Release* = finished work you haven't paid for yet,
- *   *In Escrow* = locked for work in progress; transactions = PAID jobs.
+ * Balance") and the transaction list (`GET /wallet/transactions`), plus a
+ * provider's escrow (`funds_in_escrow`). **What's derived from the jobs list:**
+ * *Pending Earnings* / *Awaiting Your Release* (finished work not yet released)
+ * and a client's *In Escrow* (the backend reports 0 for clients).
  *
  * Both requests are "live" here (never served from cache, re-fetched every 15s
  * and on focus) so the balance and payments track what happens on-chain.
- * Withdrawing has no endpoint (the button says
- * so); a client whose wallet isn't set up gets a "Set up wallet" button
- * (`POST /wallet/me/bootstrap`), needed before funding escrow.
+ * There is no withdraw endpoint, so there is no Withdraw button. A custodial wallet
+ * that isn't fully set up (`trustline_created: false`) gets a "Set up wallet"
+ * button (`POST /wallet/me/bootstrap`), needed before funding escrow.
  */
 function WalletView({ role }: { role: Role }) {
 	const wallet = useWallet({ live: true });
@@ -39,31 +41,19 @@ function WalletView({ role }: { role: Role }) {
 	const all = jobs.data ?? [];
 	const loading = jobs.isPending;
 	const provider = role === "provider";
-
-	const transactions: WalletTransaction[] = all
-		.filter((job) => job.status === "PAID")
-		.slice(0, 8)
-		.map((job) => ({
-			id: job.id,
-			title: provider ? `Payment received for ${job.title}` : `Payment released for ${job.title}`,
-			date: job.updated_at ?? job.created_at,
-			amount: provider ? Number(job.price_amount) : -Number(job.price_amount),
-			asset: job.price_asset,
-		}));
+	const history = useWalletTransactions({ live: true });
+	const transactions: WalletTransaction[] = (history.data ?? []).map((tx) => ({
+		id: tx.id,
+		title: TITLES[tx.type](tx.job_title),
+		date: tx.confirmed_at ?? tx.submitted_at,
+		amount: tx.direction === "in" ? Number(tx.amount) : -Number(tx.amount),
+		asset: tx.asset,
+		status: tx.status === "FAILED" ? "failed" : tx.confirmed_at ? "completed" : "pending",
+	}));
 
 	const needsSetup = wallet.data && !(wallet.data.funded && wallet.data.trustline_created) && wallet.data.type === "custodial";
 
-	const action = provider ? (
-		<Button
-			type="button"
-			variant="ghost"
-			size="large"
-			className="w-64 max-w-full self-center bg-white text-foreground hover:bg-white/90 focus-visible:bg-white lg:w-auto lg:self-start lg:px-12"
-			onClick={() => toast.info("Withdrawals aren't available yet.")}
-		>
-			Withdraw
-		</Button>
-	) : needsSetup ? (
+	const action = needsSetup ? (
 		<Button
 			type="button"
 			variant="ghost"
@@ -103,7 +93,12 @@ function WalletView({ role }: { role: Role }) {
 					action={action}
 					tiles={[
 						{ icon: Clock, label: provider ? "Pending Earnings" : "Awaiting Your Release", amount: sumPrices(all, ["COMPLETED"]) },
-						{ icon: Lock, label: "In Escrow", amount: sumPrices(all, ["FUNDED", "IN_PROGRESS"]) },
+						{
+							icon: Lock,
+							label: "In Escrow",
+							// A provider's escrow is real (`funds_in_escrow`); the backend reports "0" for a client, so theirs is worked out from their jobs.
+							amount: provider ? Number(wallet.data?.funds_in_escrow ?? 0) || 0 : sumPrices(all, ["FUNDED", "IN_PROGRESS"]),
+						},
 					]}
 				/>
 			)}
@@ -111,10 +106,10 @@ function WalletView({ role }: { role: Role }) {
 			{wallet.isError ? (
 				<QueryError message="We couldn't load your wallet address." onRetry={() => void wallet.refetch()} />
 			) : (
-				<WalletAddressCard publicKey={wallet.data?.public_key ?? ""} ready={Boolean(wallet.data)} />
+				<WalletAddressCard publicKey={wallet.data?.public_key ?? ""} ready={Boolean(wallet.data)} verified={wallet.data ? !isWalletSetupIncomplete(wallet.data) : undefined} />
 			)}
 
-			<RecentTransactions transactions={transactions} loading={loading} />
+			<RecentTransactions transactions={transactions} loading={history.isPending} error={history.isError} />
 		</div>
 	);
 }

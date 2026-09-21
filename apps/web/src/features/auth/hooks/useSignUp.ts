@@ -18,6 +18,7 @@ function useSignUp(role: SignUpRole) {
 	const router = useRouter();
 	const setEmail = useSignUpFlowStore((state) => state.setEmail);
 	const setRole = useSignUpFlowStore((state) => state.setRole);
+	const setLocation = useSignUpFlowStore((state) => state.setLocation);
 
 	return useMutation({
 		meta: { action: "auth.sign-up" },
@@ -34,6 +35,7 @@ function useSignUp(role: SignUpRole) {
 		onSuccess: (_data, values) => {
 			setEmail(values.email);
 			setRole(role);
+			setLocation(values.country && values.state ? { country: values.country, state: values.state } : null);
 			toast.success("Account created. Check your email for a verification code.");
 			router.push("/auth/verify-otp");
 		},

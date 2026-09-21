@@ -5,7 +5,7 @@ import { DASHBOARD_CONFIG, type DashboardRole } from "@/features/dashboard/confi
 import { HeaderBackButton } from "@/features/dashboard/components/HeaderBackButton";
 import { HeaderSearch } from "@/features/dashboard/components/HeaderSearch";
 import { MobileNav } from "@/features/dashboard/components/MobileNav";
-import { HeaderUser, NotificationBell } from "@/features/dashboard/components/HeaderActions";
+import { HeaderUser } from "@/features/dashboard/components/HeaderActions";
 
 /**
  * Dashboard frame (provider or client — `role` picks the menu), in the design's floating-card style: from `lg` the
@@ -38,7 +38,6 @@ function DashboardShell({ role, children }: { role: DashboardRole; children: Rea
 						<MobileNav role={role} />
 						<div className="hidden h-full w-164 items-center gap-6 rounded-3xl border border-border bg-white px-7.5 lg:flex">
 							<HeaderSearch role={role} />
-							<NotificationBell className="size-14" />
 							<HeaderUser />
 						</div>
 					</div>

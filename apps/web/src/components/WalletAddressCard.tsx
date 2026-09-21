@@ -10,11 +10,16 @@ interface WalletAddressCardProps {
 	/** False until the key is known (e.g. still loading from storage) — the address stays blank rather than show a wrong one. */
 	ready?: boolean;
 	network?: string;
+	/**
+	 * The wallet's state, from the backend's flags: `true` = ready ("Verified"), `false` = funding or the payment-token
+	 * setup isn't finished ("Setup incomplete"), omitted = unknown (someone else's wallet), so no badge is shown.
+	 */
+	verified?: boolean;
 	className?: string;
 }
 
-/** A wallet's address (masked — copy still copies the whole key), verified badge, and network. */
-function WalletAddressCard({ publicKey, ready = true, network = "Stellar", className }: WalletAddressCardProps) {
+/** A wallet's address (masked — copy still copies the whole key), a status badge taken from the wallet's real state, and network. */
+function WalletAddressCard({ publicKey, ready = true, network = "Stellar", verified, className }: WalletAddressCardProps) {
 	async function copyAddress() {
 		try {
 			await navigator.clipboard.writeText(publicKey);
@@ -34,7 +39,8 @@ function WalletAddressCard({ publicKey, ready = true, network = "Stellar", class
 			<div className="flex items-start justify-between gap-3">
 				<p className="text-b1 text-foreground md:text-b1 2xl:text-lg">Wallet address</p>
 				{/* The design's own emerald — deeper and greyer than the stock success ramp. */}
-				<span className="rounded-full bg-success-100 px-4 py-1.5 text-b3 text-[#0a7b4e] md:py-1">Verified</span>
+				{verified === true && <span className="rounded-full bg-success-100 px-4 py-1.5 text-b3 text-[#0a7b4e] md:py-1">Verified</span>}
+				{verified === false && <span className="rounded-full bg-warning-100 px-4 py-1.5 text-b3 text-warning-700 md:py-1">Setup incomplete</span>}
 			</div>
 			<div className="flex items-center gap-3">
 				<p

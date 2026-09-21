@@ -2,4 +2,4 @@
 export type SheetId = "personal" | "provider" | "password" | "delete";
 
 /** The panels the desktop sub-nav can show inline (Change Password is a panel on desktop, a drawer on mobile). */
-export type PanelId = "personal" | "provider" | "account" | "password";
+export type PanelId = "personal" | "provider" | "password";

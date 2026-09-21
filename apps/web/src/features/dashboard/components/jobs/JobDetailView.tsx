@@ -4,7 +4,7 @@ import Link from "next/link";
 import { isAxiosError } from "axios";
 import { useState } from "react";
 import { notFound } from "next/navigation";
-import { Briefcase, CalendarDays, CircleDollarSign } from "lucide-react";
+import { Briefcase, CalendarDays, CircleDollarSign, MapPin, Tag, User } from "lucide-react";
 import { Button } from "@repo/ui/button";
 import { JobStatusBadge, type JobStatus } from "@repo/ui/job-status-badge";
 import { Skeleton } from "@repo/ui/skeleton";
@@ -15,6 +15,7 @@ import { JobTimeline } from "@/features/dashboard/components/jobs/JobTimeline";
 import { useDispute, useFundEscrow, useJob, useJobTransitions, useReleaseEscrow } from "@/features/jobs/hooks/useJobs";
 import { formatAmount, formatDate } from "@/lib/format";
 import { buildTimeline, toDashboardJob } from "@/lib/jobs";
+import { formatUserLocation } from "@/lib/providers";
 
 type Role = "provider" | "client";
 
@@ -78,8 +79,10 @@ function DetailSkeleton() {
  *   (COMPLETED), Find a provider (POSTED).
  *
  * The client screens had no design for this page: it reuses the provider's
- * layout. The backend's job has no client name, location or category, so those
- * mock fields are gone. Refreshes itself while the job is mid-flight.
+ * layout. The job detail (`GET /jobs/{id}`) now carries the client's name and
+ * the assigned provider's location, shown here as Client / Provider location
+ * rows, plus the optional due date and category. Refreshes itself while the job is
+ * mid-flight.
  */
 function JobDetailView({ id, role }: { id: string; role: Role }) {
 	const job = useJob(id);
@@ -104,6 +107,9 @@ function JobDetailView({ id, role }: { id: string; role: Role }) {
 	const status = data.status;
 	const timeline = buildTimeline(data, transitions.data ?? []);
 	const jobsHref = `/${role}/dashboard/jobs`;
+	const clientName = data.client ? [data.client.first_name, data.client.last_name].filter(Boolean).join(" ") : "";
+	const clientPlace = formatUserLocation(data.client?.location);
+	const providerPlace = formatUserLocation(data.location);
 
 	return (
 		<div className="flex flex-col gap-8 lg:gap-10">
@@ -145,6 +151,39 @@ function JobDetailView({ id, role }: { id: string; role: Role }) {
 								{formatDate(data.created_at)}
 							</span>
 						</Field>
+						{data.due_date && (
+							<Field label="Due">
+								<span className="flex items-center gap-3 text-foreground">
+									<CalendarDays className="size-5 shrink-0 text-neutral-500" strokeWidth={1.5} aria-hidden="true" />
+									{formatDate(data.due_date)}
+								</span>
+							</Field>
+						)}
+						{data.skill_category && (
+							<Field label="Category">
+								<span className="flex items-center gap-3 text-foreground">
+									<Tag className="size-5 shrink-0 text-neutral-500" strokeWidth={1.5} aria-hidden="true" />
+									{data.skill_category}
+								</span>
+							</Field>
+						)}
+						{role === "provider" && clientName && (
+							<Field label="Client">
+								<span className="flex items-center gap-3 text-foreground">
+									<User className="size-5 shrink-0 text-neutral-500" strokeWidth={1.5} aria-hidden="true" />
+									{clientName}
+									{clientPlace ? ` · ${clientPlace}` : ""}
+								</span>
+							</Field>
+						)}
+						{role === "client" && providerPlace && (
+							<Field label="Provider location">
+								<span className="flex items-center gap-3 text-foreground">
+									<MapPin className="size-5 shrink-0 text-neutral-500" strokeWidth={1.5} aria-hidden="true" />
+									{providerPlace}
+								</span>
+							</Field>
+						)}
 					</dl>
 				</section>
 

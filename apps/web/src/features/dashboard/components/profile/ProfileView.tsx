@@ -11,8 +11,9 @@ import { useCurrentUser } from "@/features/auth/hooks/useSession";
 import { AboutCard, ProfileIdentity, ReputationCard, SkillsCard } from "@/features/dashboard/components/profile/ProfileParts";
 import { WorkHistory, type WorkHistoryItem } from "@/features/dashboard/components/profile/WorkHistory";
 import { useJobs } from "@/features/jobs/hooks/useJobs";
+import { useProfilePicture } from "@/features/settings/hooks/useAvatar";
 import { useProviderProfile } from "@/features/provider/hooks/useProviderProfile";
-import { useWallet } from "@/features/provider/hooks/useWallet";
+import { isWalletSetupIncomplete, useWallet } from "@/features/provider/hooks/useWallet";
 import { providerHeadline, providerLocation } from "@/lib/providers";
 
 /**
@@ -30,6 +31,7 @@ function ProfileView() {
 	const { user } = useCurrentUser();
 	const profile = useProviderProfile();
 	const wallet = useWallet();
+	const picture = useProfilePicture();
 	const jobs = useJobs("provider");
 
 	const heading = <h1 className="sr-only lg:not-sr-only lg:text-h4 2xl:text-h3 lg:font-medium lg:text-foreground">Profile</h1>;
@@ -97,6 +99,7 @@ function ProfileView() {
 					rating={rating}
 					jobsDone={p.jobs_completed}
 					walletVerified={Boolean(wallet.data && (wallet.data.type === "linked" || wallet.data.funded))}
+					avatarUrl={picture.data}
 				/>
 				<ReputationCard rating={rating} jobsDone={p.jobs_completed} completedJobs={p.jobs_completed} className="lg:w-72 lg:shrink-0" />
 			</section>
@@ -109,7 +112,7 @@ function ProfileView() {
 			{wallet.isError ? (
 				<QueryError message="We couldn't load your wallet address." onRetry={() => void wallet.refetch()} />
 			) : (
-				<WalletAddressCard publicKey={wallet.data?.public_key ?? ""} ready={Boolean(wallet.data)} />
+				<WalletAddressCard publicKey={wallet.data?.public_key ?? ""} ready={Boolean(wallet.data)} verified={wallet.data ? !isWalletSetupIncomplete(wallet.data) : undefined} />
 			)}
 
 			{jobs.isError ? <QueryError message="We couldn't load your work history." onRetry={() => void jobs.refetch()} /> : <WorkHistory jobs={history} viewAllHref="/provider/dashboard/jobs" />}

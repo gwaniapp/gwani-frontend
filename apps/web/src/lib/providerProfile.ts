@@ -4,13 +4,14 @@ import type { ProviderProfile, Skill } from "@/lib/api/types";
 import type { ProviderRegistrationValues } from "@/lib/validations/providerValidations";
 
 /**
- * The provider forms (registration, Settings → Provider Information) have more
- * fields than the backend's profile does — a category, a state, an area — so
- * these helpers translate both ways. What the backend stores
- * (`PATCH /providers/me/profile`): `bio`, `location_country` (ISO code),
- * `location_city` (≤120 chars), `skill_slugs` (from the catalog). The category
- * is UI-only (it just narrows the skill suggestions); state and area are packed
- * into the one city string as "Area, State".
+ * The provider forms (registration, Settings → Provider Information) map onto the
+ * backend's `PATCH /providers/me/profile`: `bio`, `skill_category` (the category's
+ * label — a broad grouping, distinct from the skills), `skill_slugs` (from the
+ * catalog), and the location as `location_country` (ISO code), `location_state`,
+ * `location_area` and `location_city`. The form has no separate city, so the city
+ * is the area (or the state when there's no area) — that is what the directory's
+ * city search matches. Older profiles saved before these fields existed hold
+ * "Area, State" packed into the city; `decodeCity` still reads those.
  */
 
 /** "Lekki" + "Lagos" → "Lekki, Lagos"; either part may be empty. */
@@ -44,10 +45,14 @@ export function skillNamesToSlugs(names: string[], catalog: Skill[]) {
 
 /** Form values → the `PATCH /providers/me/profile` body. */
 export function toProfilePayload(values: ProviderRegistrationValues, slugs: string[]) {
+	const category = SERVICE_CATEGORIES.find((item) => item.value === values.category);
 	return {
 		bio: values.bio.trim(),
+		...(category ? { skill_category: category.label } : {}),
 		location_country: values.country,
-		location_city: encodeCity(values.state, values.area),
+		location_state: values.state.trim().slice(0, 120),
+		location_area: (values.area ?? "").trim().slice(0, 120),
+		location_city: ((values.area ?? "").trim() || values.state.trim()).slice(0, 120),
 		skill_slugs: slugs,
 	};
 }
@@ -59,7 +64,7 @@ export function profileToFormValues(profile: ProviderProfile | null | undefined)
 	const decoded = decodeCity(country, profile?.location_city ?? null);
 	return {
 		bio: profile?.bio ?? "",
-		category: profile?.skill_category || inferCategory(skills),
+		category: SERVICE_CATEGORIES.find((item) => item.label.toLowerCase() === (profile?.skill_category ?? "").toLowerCase())?.value ?? inferCategory(skills),
 		skills,
 		country,
 		// The backend has its own state/area fields; prefer them when set, else fall back to what was packed into the city.

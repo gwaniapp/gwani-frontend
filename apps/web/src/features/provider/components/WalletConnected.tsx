@@ -44,7 +44,7 @@ function WalletConnected() {
 					</button>
 				</p>
 			) : (
-				<WalletAddressCard publicKey={wallet.data?.public_key ?? ""} ready={Boolean(wallet.data)} />
+				<WalletAddressCard publicKey={wallet.data?.public_key ?? ""} ready={Boolean(wallet.data)} verified={wallet.data ? !isWalletSetupIncomplete(wallet.data) : undefined} />
 			)}
 
 			{isWalletSetupIncomplete(wallet.data) && (

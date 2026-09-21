@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiRoutes } from "@/lib/config/apiRoutes";
-import { axiosPublic } from "@/lib/config/axios";
+import { axiosAuth, axiosPublic } from "@/lib/config/axios";
 import { normalizeProvider } from "@/lib/providers";
 import type { ApiSuccessResponse, ProviderProfile } from "@/lib/api/types";
 
@@ -9,7 +9,7 @@ const POOL = 50;
 const OPTIONS = 20;
 
 export interface ProviderSearch {
-	/** Free text: matched against skills and city (the backend can't search names). */
+	/** Free text: matched against provider names, category and location (search) and skills (directory). */
 	text: string;
 	/** A catalog skill slug (the "skills" chip). */
 	skill: string;
@@ -46,10 +46,10 @@ async function fetchProvider(id: string): Promise<ProviderProfile> {
 }
 
 /**
- * The directory rows (`/providers/discover`) carry **no name and no skills**, so
- * a card built from one alone can't say who the provider is. Each visible row is
- * filled in from its full profile — one request per provider on the page (six),
- * in parallel, and a row whose profile can't be fetched just stays as it was.
+ * The directory rows (`/providers/discover`) carry **no name, picture or skills**
+ * (and the search rows no skills), so a card built from one alone is thin. Each
+ * visible row is filled in from its full profile — one request per provider on the
+ * page (six), in parallel, and a row whose profile can't be fetched stays as it was.
  */
 function withProfiles(items: ProviderProfile[]) {
 	return Promise.all(items.map((item) => fetchProvider(item.id).catch(() => item)));
@@ -58,14 +58,30 @@ function withProfiles(items: ProviderProfile[]) {
 const slugify = (text: string) => text.trim().toLowerCase().replace(/\s+/g, "-");
 
 /**
- * `GET /providers/discover` — public. The backend filters by `skill` (slug,
- * partial), `country`, `city` (partial) and `min_reputation`, and pages with
- * `page` / `page_size`; it can't search by provider name or take one text box.
+ * `GET /providers/search` — **clients only** (needs the JWT): free text across a
+ * provider's *name*, category and location, plus `min_reputation`. Rows carry the
+ * name, picture, category, reputation and location but no skills. Up to 50.
+ */
+async function searchByText(query: string, minRating: string): Promise<Discovered> {
+	const params = Object.fromEntries(Object.entries({ query, min_reputation: minRating, page_size: POOL }).filter(([, value]) => value !== ""));
+	const { data } = await axiosAuth.get<ApiSuccessResponse<unknown>>(apiRoutes.providers.SEARCH, { params });
+	return readDiscovered(data);
+}
+
+/**
+ * The Find Providers results. The backend filters the public directory
+ * (`GET /providers/discover`) by `skill` (slug, partial), `country`, `city` and
+ * `min_reputation`, and pages it; free text goes to `GET /providers/search`, which
+ * matches names, category and location (not skills).
  *
- * With no text this is one paged request. With text, two run and are merged
- * (up to 50 providers each): providers whose skill matches and providers whose
- * city matches — then paged here. Names can't be searched (the list has none).
- * Either way, the visible page is then filled in with each provider's profile.
+ * - No text: one paged directory request.
+ * - Text, no skill chip: the search matches *plus* the providers whose skill matches
+ *   the text (a directory request for that slug), merged.
+ * - Text and a skill chip: the directory's providers for that skill, narrowed to the
+ *   ones the search matched.
+ *
+ * Merged results are paged here, and the visible page is filled in with each
+ * provider's full profile (skills, bio, picture).
  */
 function useProviderSearch(search: ProviderSearch) {
 	return useQuery({
@@ -80,13 +96,21 @@ function useProviderSearch(search: ProviderSearch) {
 				return { items: await withProfiles(page.items), total: page.total };
 			}
 
-			const [bySkill, byCity] = await Promise.all([
-				search.skill ? Promise.resolve<Discovered>({ items: [], total: 0 }) : discover({ ...common, skill: slugify(text), page_size: POOL }),
-				discover({ ...common, skill: search.skill, city: text, page_size: POOL }),
-			]);
-			const merged = new Map<string, ProviderProfile>();
-			for (const provider of [...bySkill.items, ...byCity.items]) merged.set(provider.id, provider);
-			const all = [...merged.values()];
+			// If the search endpoint is unavailable, fall back to what the public directory can match: the city.
+			const named = await searchByText(text, search.minRating).catch(() => discover({ ...common, city: text, page_size: POOL }));
+			// The search has no country filter, so narrow its rows by the chip here.
+			const byCountry = (provider: ProviderProfile) => !search.country || provider.location_country === search.country;
+			let all: ProviderProfile[];
+			if (search.skill) {
+				const inSkill = await discover({ ...common, skill: search.skill, page_size: POOL });
+				const wanted = new Set(named.items.map((provider) => provider.id));
+				all = inSkill.items.filter((provider) => wanted.has(provider.id));
+			} else {
+				const bySkill = await discover({ ...common, skill: slugify(text), page_size: POOL });
+				const merged = new Map<string, ProviderProfile>();
+				for (const provider of [...named.items.filter(byCountry), ...bySkill.items]) merged.set(provider.id, provider);
+				all = [...merged.values()];
+			}
 			const start = (search.page - 1) * PROVIDERS_PAGE_SIZE;
 			return { items: await withProfiles(all.slice(start, start + PROVIDERS_PAGE_SIZE)), total: all.length };
 		},

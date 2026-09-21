@@ -51,3 +51,15 @@ export const verifyOtpSchema = z.object({
 	code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code"),
 });
 export type VerifyOtpValues = z.infer<typeof verifyOtpSchema>;
+
+export const forgotPasswordSchema = z.object({
+	email: z.string().trim().min(1, "Enter your email address").email("Enter a valid email address"),
+});
+export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
+
+// Resetting a password (Settings → Change Password, and the "Forgot password?" page) uses the backend's emailed 6-digit code plus the new password (sign-up rules).
+export const resetPasswordSchema = z.object({
+	code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code from your email"),
+	newPassword: z.string().min(1, "Enter a new password").refine(isValidPassword, PASSWORD_MESSAGE),
+});
+export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;

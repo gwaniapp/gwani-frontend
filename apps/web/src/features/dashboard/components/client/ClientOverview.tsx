@@ -7,26 +7,33 @@ import { ListSkeleton, QueryError } from "@/components/QueryState";
 import { useCurrentUser } from "@/features/auth/hooks/useSession";
 import { ClientJobCard } from "@/features/dashboard/components/client/ClientJobCard";
 import { QuickActions } from "@/features/dashboard/components/client/QuickActions";
-import { NotificationBell, UserAvatar } from "@/features/dashboard/components/HeaderActions";
+import { UserAvatar } from "@/features/dashboard/components/HeaderActions";
 import { StatCard } from "@/features/dashboard/components/StatCard";
 import { useGreeting } from "@/features/dashboard/hooks/useGreeting";
+import { useClientStats } from "@/features/dashboard/hooks/useDashboardStats";
 import { useJobs } from "@/features/jobs/hooks/useJobs";
 import { formatAmount } from "@/lib/format";
-import { ACTIVE_STATUSES, sumPrices, toDashboardJob } from "@/lib/jobs";
+import { toDashboardJob } from "@/lib/jobs";
+import type { JobStatus } from "@/lib/api/types";
+
+/** The server's own meaning of "active" for a client: posted and not yet paid out (not disputed or cancelled). */
+const CLIENT_ACTIVE: ReadonlySet<JobStatus> = new Set(["POSTED", "PROVIDER_SELECTED", "FUNDED", "IN_PROGRESS", "COMPLETED"]);
 
 /**
- * Client dashboard overview, on real data (`GET /jobs`): greeting, three
- * headline numbers, quick actions and the jobs under way. Active = a provider
- * is chosen and the job isn't finished; Completed = finished (completed or
- * paid); Total Spent = payments released. "View all" goes to the full list.
+ * Client dashboard overview, on real data: greeting, three headline numbers
+ * (counted by the server, `GET /jobs/client/dashboard/stats`), quick actions and
+ * the jobs under way (`GET /jobs`). Active = posted and not yet paid out (the
+ * server definition, so the count and the cards agree); Completed = paid out;
+ * Total Spent = payments released. "View all" goes to the full list.
  */
 function ClientOverview() {
 	const greeting = useGreeting();
 	const { user } = useCurrentUser();
 	const jobs = useJobs("client");
+	const stats = useClientStats();
 
 	const all = jobs.data ?? [];
-	const active = all.filter((job) => ACTIVE_STATUSES.has(job.status));
+	const active = all.filter((job) => CLIENT_ACTIVE.has(job.status));
 	const dash = "–";
 
 	return (
@@ -40,21 +47,16 @@ function ClientOverview() {
 					<p className="text-b3 text-neutral-500 lg:text-b1">Here&apos;s what&apos;s happening with your jobs today.</p>
 				</div>
 				<div className="flex items-center gap-3 lg:hidden">
-					<NotificationBell className="size-10" />
 					<UserAvatar className="size-10" />
 				</div>
 			</div>
 
 			<section aria-label="Summary" className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-				<StatCard label="Active Jobs" value={jobs.data ? String(active.length) : dash} icon={Briefcase} />
-				<StatCard
-					label="Completed Jobs"
-					value={jobs.data ? String(all.filter((job) => job.status === "COMPLETED" || job.status === "PAID").length) : dash}
-					icon={CircleCheckBig}
-				/>
+				<StatCard label="Active Jobs" value={stats.data ? String(stats.data.active_jobs) : dash} icon={Briefcase} />
+				<StatCard label="Completed Jobs" value={stats.data ? String(stats.data.completed_jobs) : dash} icon={CircleCheckBig} />
 				<StatCard
 					label="Total Spent"
-					value={jobs.data ? formatAmount(sumPrices(all, ["PAID"]), all[0]?.price_asset ?? "USDC") : dash}
+					value={stats.data ? formatAmount(Number(stats.data.total_spent) || 0, all[0]?.price_asset ?? "USDC") : dash}
 					icon={CircleDollarSign}
 				/>
 			</section>

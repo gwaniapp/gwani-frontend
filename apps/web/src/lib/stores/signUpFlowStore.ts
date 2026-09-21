@@ -18,6 +18,9 @@ interface SignUpFlowState {
 	/** Chosen at Sign Up — decides where the flow continues after verification. */
 	role: SignUpRole | null;
 	setRole: (role: SignUpRole) => void;
+	/** A client's country + state from the sign-up form. The signup endpoint has no location, so it's sent with `PATCH /users/me` once the account is verified. */
+	location: { country: string; state: string } | null;
+	setLocation: (location: { country: string; state: string } | null) => void;
 	reset: () => void;
 }
 
@@ -28,7 +31,9 @@ const useSignUpFlowStore = create<SignUpFlowState>()(
 			setEmail: (email) => set({ email }),
 			role: null,
 			setRole: (role) => set({ role }),
-			reset: () => set({ email: "", role: null }),
+			location: null,
+			setLocation: (location) => set({ location }),
+			reset: () => set({ email: "", role: null, location: null }),
 		}),
 		{
 			name: "gwani-sign-up-flow",

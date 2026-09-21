@@ -2,7 +2,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@repo/ui/sonner";
 import { SESSION_KEY } from "@/features/auth/hooks/useSession";
-import { axiosPublic } from "@/lib/config/axios";
+import { axiosAuth, axiosPublic } from "@/lib/config/axios";
 import { apiRoutes } from "@/lib/config/apiRoutes";
 import { getApiErrorMessage } from "@/lib/api/errorMessage";
 import { useAuthStore } from "@/lib/stores/authStore";
@@ -22,7 +22,8 @@ class MissingEmailError extends Error {
  * `{ access_token, refresh_token, user }`, which is the first real session:
  * tokens go into the cookie store, the user into the session cache, and the
  * "verified" screen is shown for the role the backend reports (not the one
- * remembered from sign-up). 10 attempts per 15 minutes per IP.
+ * remembered from sign-up). 10 attempts per 15 minutes per IP. A client's
+ * sign-up location is saved with `PATCH /users/me` right after (best effort).
  */
 function useVerifyOtp() {
 	const router = useRouter();
@@ -42,6 +43,14 @@ function useVerifyOtp() {
 		onSuccess: (session) => {
 			useAuthStore.getState().setTokens(session);
 			queryClient.setQueryData(SESSION_KEY, session.user);
+			// A client's country + state from the sign-up form: signup has no location, so it goes in now, best effort.
+			const location = useSignUpFlowStore.getState().location;
+			if (location) {
+				void axiosAuth
+					.patch(apiRoutes.users.ME, { location_country: location.country, location_state: location.state })
+					.then(() => queryClient.invalidateQueries({ queryKey: SESSION_KEY }))
+					.catch(() => undefined);
+			}
 			useSignUpFlowStore.getState().reset();
 			router.push(`/auth/verified?role=${session.user.role.toLowerCase()}`);
 		},

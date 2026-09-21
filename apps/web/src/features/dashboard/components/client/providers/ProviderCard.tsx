@@ -5,8 +5,8 @@ import { providerHeadline, providerInitials, providerLocation, providerName } fr
 import type { ProviderProfile } from "@/lib/api/types";
 
 /**
- * A provider in the results grid, from `GET /providers/discover`. The avatar is
- * initials (no profile-photo asset is served yet); "what they do" is their first
+ * A provider in the results grid. The avatar is their profile picture when they
+ * have one, else initials; "what they do" is their first
  * skill, since the backend has no trade title. Rows the profile has nothing for
  * (no skills, no location) are left out rather than invented.
  */
@@ -20,9 +20,10 @@ function ProviderCard({ provider }: { provider: ProviderProfile }) {
 			<div className="flex items-center gap-4 lg:gap-5">
 				<span
 					aria-hidden="true"
-					className="flex size-18 shrink-0 items-center justify-center rounded-full bg-primary-100 text-h5 text-primary-600 lg:size-20"
+					style={provider.avatar_url ? { backgroundImage: `url(${provider.avatar_url})` } : undefined}
+					className="flex size-18 shrink-0 items-center justify-center rounded-full bg-primary-100 bg-cover bg-center text-h5 text-primary-600 lg:size-20"
 				>
-					{providerInitials(provider)}
+					{provider.avatar_url ? null : providerInitials(provider)}
 				</span>
 				<div className="flex min-w-0 flex-col gap-1.5">
 					<h3 className="truncate text-xl font-medium text-foreground lg:text-xl">{providerName(provider)}</h3>

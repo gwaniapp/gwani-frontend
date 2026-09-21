@@ -71,34 +71,51 @@ does and where the backend falls short is under its own section; the short versi
 - **Provider dashboard:** overview, jobs, job detail (+ Mark as Completed, dispute), profile, wallet — real.
 - **Client:** overview, Find Providers (`/providers/discover`), provider profile (`/providers/{id}`), My Jobs, Post a
   New Job (`POST /jobs` → `select-provider`), job detail (Fund escrow, Release payment, dispute), wallet — real.
-- **Avatar upload** (`/files/request-upload` → PUT to storage) — coded, but **the live backend has no such route**
-  (`POST /api/v1/files/request-upload` → 404 although the spec documents it), so an upload shows "Profile photos aren't
-  available on the server yet". It works unchanged once the route exists (the photo is then remembered per browser only).
-- **No backend endpoint, so not real (and hidden or honest about it):** a provider *rejecting* a job (the dialog was
-  removed; needs e.g. `POST /jobs/{id}/reject`), changing a password while signed in, notification preferences
-  (localStorage), self-service account deletion (a request button), withdrawals, wallet **balance** and
-  **transaction history** (the tiles and the list on the Wallet page are derived from the jobs list and labelled as
-  such; the *balance* itself is real — `GET /wallet/me` now returns `usdc_balance`),
-  notifications (the bell shows no badge), the client's name/location and a job's category/location (jobs have
-  none — the mocks' fields are gone), a provider's trade title (first skill is used), provider/client
-  *names on jobs*, and public work history.
-- **Real provider shapes (confirmed live; the OpenAPI prose is wrong about them).** `GET /providers/{userId}` (public,
-  and presumably `/providers/me/profile`): `{ user: {id, first_name, last_name, …}, provider: {user_id, bio,
-  skill_category, location_country/state/city/area, reputation_score: "0.00", completed_jobs_count}, wallet_address,
-  wallet_type, skills: [{id,slug,name}], skill_category, reputation_score, completed_jobs, location: {…} }`. The
-  directory row (`/providers/discover`) is the flat `provider` object only — **no id (use `user_id`), no name, no
-  skills**. `normalizeProvider` (`lib/providers.ts`) turns either into the app's `ProviderProfile`; the hooks
-  normalize and screens never read raw shapes. Because rows have no names, `useProviderSearch`/`useProviderOptions`
-  fill each *visible* row (≤6, or 20 for the job form's picker) from `GET /providers/{id}` in parallel. The backend
-  can't search names, so the text box searches skill + city only. `select-provider` takes the provider's **user id**.
-  The backend also has `skill_category`, `location_state`, `location_area`, although the documented PATCH only takes
-  `bio, location_country, location_city, skill_slugs` — "Area, State" is still packed into `location_city`
-  (`lib/providerProfile.ts`), and reads prefer the real state/area fields when set.
-- **SECURITY (the backend's to fix, reported to the user):** the public `GET /providers/{id}` returns the whole `user`
-  row — email and `password_hash` included. The app keeps only the fields it needs and never renders the rest; don't
-  log or store that payload.
+- **Avatar** — real: `POST /users/me/profile-picture` (multipart `file`; the server re-compresses it under 1 MB and keeps
+  it on the user) and `GET /users/me/profile-picture` (a fresh 7-day URL; 404 = none). Shown in the header, Settings and
+  the own-profile page (`useProfilePicture`/`useAvatar`). It goes through the proxy as multipart — the axios call must set
+  `Content-Type: multipart/form-data` explicitly (the instance default is JSON, which would flatten the FormData). The old
+  `/files/request-upload` route no longer exists in the spec.
+- **No backend endpoint, so not offered (the UI was trimmed to match, 2026-09-21):** a provider *rejecting* a job (the dialog was
+  removed; needs e.g. `POST /jobs/{id}/reject`), an old-password change (done via the emailed-code reset instead), notification
+  preferences and the notification bell (both removed), self-service account deletion (an email to support instead), withdrawals
+  (no Withdraw button), and the mock's extra "Filter" chip on Find Providers. (Wallet **balance**, **transactions** and a provider's **escrow** are real since 2026-09-21 —
+  `GET /wallet/me` returns `usdc_balance` and `funds_in_escrow`, `GET /wallet/transactions` the list),
+  notifications (the bell shows no badge), a provider's trade title (first skill is used) and *public* work history.
+  (Since 2026-09-21 the job detail returns the client's name and the provider's location, shown on the detail page; the job
+  *cards* still show neither — `GET /jobs/client/dashboard/jobs` and `GET /providers/provider/dashboard/jobs` carry
+  them, and `GET /providers/me/work-history` + `GET /providers/provider/dashboard/profile` exist but are not used.)
+- **Real provider shapes (confirmed live 2026-09-21; the OpenAPI prose lags behind).** The full profile (`GET /providers/{id}`, public, and
+  `/providers/me/profile`) is now **flat**: `{ id, first_name, last_name, profile_picture_url, bio, wallet_address, wallet_type, skills:
+  [{id,slug,name}], skill_category, reputation_score: "0.00", completed_jobs, location: {country,state,city,area}, job_history:
+  [{id,title,status,date}] }` (up to 10 recent finished jobs, no price/client). It used to nest a `user` row that leaked the password hash
+  and email — **that leak is fixed**. Two list shapes: the public directory row (`GET /providers/discover`) is still only `{ user_id,
+  bio, skill_category, location_*, reputation_score, completed_jobs_count }` (no name, picture or skills), and the **client-only**
+  `GET /providers/search` (params `query` — free text over name, category and location, *not* skills —, `category`, `location`,
+  `min_reputation`, `order`, paging) returns `{ id, first_name, last_name, profile_picture_url, skill_category, reputation_score,
+  completed_jobs, location }`. `normalizeProvider` (`lib/providers.ts`) turns any of these (and the old nested one) into the app's
+  `ProviderProfile`; hooks normalize and screens never read raw shapes. `GET /skills` now returns `{ items }` (spec says array; `useSkills`
+  accepts both). **Find Providers** (`useProviderSearch`): no text → one paged directory request; text → `/providers/search` ∪ the
+  providers whose skill matches (directory, slug), narrowed by the country chip; with a skill chip, the skill's providers ∩ the search
+  matches; if the search endpoint fails it falls back to a directory city match. Each visible row is then filled in from
+  `GET /providers/{id}` (skills, bio, picture). `select-provider` takes the provider's **user id**. The profile pictures are public presigned
+  URLs (7 days) and are shown on the cards, the preview and the own profile. The provider preview also lists `job_history` (no amounts).
 - **Still unobserved:** cursor `GET /jobs` with real jobs (the empty list is `{items: [], next_cursor: null}`). The
   `[api:…]` console log prints every raw response — check it on first real use.
+- **BACKEND BUGS found live on 2026-09-21 (with the real test accounts) — the backend team's to fix:**
+  1. **`POST /jobs/{id}/escrow/fund` returns 500 *after* locking the money.** The on-chain transaction succeeds (a
+     claimable balance is created for provider + client) and then the backend throws `{"message":"Custom Id cannot contain :"}`
+     (BullMQ rejects a job id containing a colon — use another separator). The escrow row is stored as `FAILED`, the job
+     stays `PROVIDER_SELECTED`, so the UI offers "Fund escrow" again and every retry locks more funds. Reproduced twice
+     (jobs 3a6face4… for 2,300 and c20db0c3… for 1; Horizon confirms both). The lifecycle can't get past funding until fixed.
+     The app now words any 5xx on fund/release as "may already have gone through — check Recent Transactions".
+  2. **The escrow/"USDC" asset is native XLM:** the wallets hold only XLM (no USDC trustline; `trustline_created: false`)
+     and `usdc_balance` is really the XLM balance; the claimable balances are `native`. The app labels amounts USDC as the API does.
+  3. ~~Public `GET /providers/{id}` returned the whole user row incl. `email` and `password_hash`~~ — **fixed** (flat shape, 2026-09-21).
+  4. `GET /jobs/{id}`'s `timeline` leaves the *current* status `completed: false`, and `/jobs/{id}/transitions` is empty
+     (no select-provider transition recorded) — the app derives "reached" from the status and uses the timeline's dates only.
+  5. The test provider's profile has `location_country: "BD"` with city "Warri, Delta" (account data — the form has no state
+     list for Bangladesh, so it was probably picked by mistake).
 - **Verified how:** every flow was run in Chrome against faithful mocked responses (network interception) plus the
   live public endpoints (`/skills`, wrong-credentials login). What has *not* been done is a real end-to-end run
   with a real inbox/account/Freighter — the user needs to do that.
@@ -233,19 +250,18 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   suspended, same status): matched by wording (`/verif/`, not `/suspend/`) — unverified goes to the OTP step
   and requests a fresh code, suspended shows a message; the code/message it sees is logged
   (`auth.sign-in info`) so the exact `error` code can be pinned down on the first real case. 401 → "Invalid
-  email or password." The form ends with "Don't have an account? Sign up" → `/auth/sign-up` (added on request; the mock had none). "Forgot Password?" links to `/auth/forgot-password` (not built; the backend has
-  `POST /auth/forgot-password` and `POST /auth/reset-password` with an OTP).
+  email or password." The form ends with "Don't have an account? Sign up" → `/auth/sign-up` (added on request; the mock had none). "Forgot Password?" links to `/auth/forgot-password`, which is built (`ForgotPasswordForm`, no mock — it borrows the sign-in look): email → `POST /auth/forgot-password` (always 204), then the 6-digit code + a new password → `POST /auth/reset-password` (revokes every session) → back to sign-in. Hooks: `features/auth/hooks/usePasswordReset.ts`; schemas in `authValidations`.
 - Desktop content is anchored ~240px from the top (`AuthLayout`, matching every mock and the
   panel headline), not vertically centered; the offset shrinks on short windows so content
   isn't pushed off-screen. Tablet (`md`) stays centered, mobile is top-aligned.
 - **`/provider/onboarding` (provider registration) is connected.** Own shell
   (`components/layouts/OnboardingLayout.tsx` — hero + benefits card on the left, no blue panel) under
   `app/provider/(setup)/layout.tsx`, which (like `(status)`) is behind `AuthGate role="provider"`. Submit →
-  `PATCH /providers/me/profile` `{ bio, location_country, location_city, skill_slugs }` (`useSaveProviderProfile`,
-  shared with Settings), then `/provider/wallet`. **The form has more fields than the backend:** *category* is
-  UI-only (it just narrows the skill suggestions and is never sent; on edit it's inferred from the saved skills),
-  and *state* + *area* are packed into the one city string as "Area, State" (`lib/providerProfile.ts`
-  `encodeCity`/`decodeCity`). Countries are ISO codes already (what the backend wants). States are still a mock list
+  `PATCH /providers/me/profile` `{ bio, skill_category, location_country, location_state, location_area, location_city,
+  skill_slugs }` (`useSaveProviderProfile`, shared with Settings), then `/provider/wallet`. **Since 2026-09-21 the backend has
+  the fields the form needs:** *category* is sent as `skill_category` (its label; it also still steers the skill suggestions),
+  *state* and *area* go to `location_state`/`location_area`, and the city is the area (or the state) so the directory's city
+  search matches (`lib/providerProfile.ts`; `decodeCity` still reads older profiles that packed "Area, State" into the city). Countries are ISO codes already (what the backend wants). States are still a mock list
   for NG/GH/KE/ZA (other countries: free text). **Skills come from the real `GET /skills` catalog**
   (`useSkills`, cached an hour; `SkillsField` is shared by registration and Settings) and are sent as slugs; the
   backend accepts only catalog skills (max 20), so `TagInput` got `allowCustom={false}` (typed text is accepted
@@ -345,8 +361,8 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   is a left slide-in (`MobileNav`, a Radix dialog restyled as a side panel, 300ms ease-out in /
   200ms ease-in out, backdrop timed to match via `DialogContent`'s `overlayClassName`), the page sits
   straight on the tinted background, and the page itself shows the bell + avatar (a page built for
-  this shell must render them under `lg:hidden`, as `DashboardOverview` does). The bell is static (nothing
-  behind it). The header **search is real** (`HeaderSearch`, desktop header only): a combobox listing matching
+  this shell must render them under `lg:hidden`, as `DashboardOverview` does). There is **no notification bell** any more (no
+  notifications endpoint — the dead button was removed). The header **search is real** (`HeaderSearch`, desktop header only): a combobox listing matching
   dashboard pages and the user's jobs by title/status (`useJobs(role, { enabled })`, fetched only once text is
   typed) and, for clients, a "Find providers for …" row that goes to `/client/dashboard/providers?q=…` (that page
   reads `?q=` and keys the view on it). Arrows/Enter/Escape work; logged as `dashboard.search`. The greeting and
@@ -363,12 +379,14 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   not touched** (they still use the mock's larger sizes).
  — both write
   `.next/dev/types` and the build's type-check then fails on a half-written file.
-- **Real data** (`features/jobs/hooks/useJobs.ts`, `lib/jobs.ts`): `useJobs("provider"|"client")` = `GET /jobs?role=…&limit=50`
-  following `next_cursor` (≤10 pages), newest first, refreshing every 30s while any job is mid-flight; a provider's
-  list drops `POSTED` jobs (the backend also returns open jobs "available to bid on" — those aren't theirs).
-  `useJob`/`useJobTransitions` refresh every 15s while a job is active. `toDashboardJob` maps a `Job` to what the cards
-  need; `DashboardJob` has **no client name, location or category** because the backend's job has none. Every
-  list/detail has a skeleton, a retry on error and an empty state (`components/QueryState.tsx`). The greeting
+- **Real data** (`features/jobs/hooks/useJobs.ts`, `lib/jobs.ts`): `useJobs("provider"|"client")` reads the **dashboard job lists**
+  — `GET /providers/provider/dashboard/jobs` (a provider's assigned jobs, each with its **client's name**) and
+  `GET /jobs/client/dashboard/jobs` (all of a client's jobs, each with the **assigned provider's name and location**, null until
+  chosen) — paged 50 at a time (≤10 pages), newest first, refreshing every 30s while any job is mid-flight; a provider with no
+  profile gets a 404 = no jobs. Rows are shaped like a `Job` (no `description`). `useJob`/`useJobTransitions` refresh every
+  15s while a job is active. `toDashboardJob` maps a `Job` to what the cards need: `DashboardJob` carries `person` (the other
+  side's name), `place` (client cards only — a provider's list repeats *their own* location, which says nothing), and `dueDate`.
+  Every list/detail has a skeleton, a retry on error and an empty state (`components/QueryState.tsx`). The greeting
   follows local time (`useGreeting`). The pager (`Pagination`, `@repo/ui`) is shown only below `lg` on the overview,
   as in the mocks; desktop relies on "View all".
 - `JobStatusBadge` (`@repo/ui`) fixes the status → label/colour mapping used everywhere: FUNDED
@@ -399,15 +417,20 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   { reason }` plus a refund; restore it from git history (`RejectJobDialog`, `rejectJobSchema` still exists).
   A round back button beside the logo (`HeaderBackButton`).
 - **Wallet** (`wallet/{WalletView,BalanceCard,RecentTransactions}`, both roles via `WalletView role`): the address, type,
-  funded state and **USDC balance** (`usdc_balance`, a decimal string) are real (`GET /wallet/me`); the banner reads
-  "Wallet Balance". **The backend still has no transactions endpoint**, so the two tiles and the list are *derived from
-  the jobs list and labelled as what they are*: provider — Pending Earnings (COMPLETED, awaiting release), In Escrow
-  (FUNDED + IN_PROGRESS); client — Awaiting Your Release (COMPLETED), In Escrow. "Recent Transactions" = the paid
-  jobs (released escrow). **Never cached (the user's call):** `useWallet` is `staleTime: 0`, `gcTime: 0`,
-  refetch-on-mount/focus, and on this page (`live: true`, also for `useJobs`) re-fetched every 15s; job actions
-  (`refreshJobs`) invalidate the wallet too, since escrow moves money. **Withdraw** (provider) toasts "not available yet"; a client with an unfunded custodial wallet gets **Set up
-  wallet** (`POST /wallet/me/bootstrap`), needed before funding escrow. The client wallet page has no design — it is the
-  provider's. If the backend adds a balance/transactions endpoint, swap the derivation in `WalletView`.
+  funded state, **USDC balance** (`usdc_balance`), a provider's **escrow** (`funds_in_escrow`) and the **transaction list**
+  (`GET /wallet/transactions`: a client's FUND/REFUND, a provider's RELEASE, each with the backend's own status —
+  FAILED shows as a red "Failed") are real; the banner reads "Wallet Balance". Only the tile *Pending Earnings / Awaiting
+  Your Release* (COMPLETED jobs) and a **client's** In Escrow (the API reports 0 for clients) are derived from the jobs list.
+  **Never cached (the user's call):** `useWallet`/`useWalletTransactions` are `staleTime: 0`, `gcTime: 0`, refetch-on-mount/
+  focus, and on this page (`live: true`, also for `useJobs`) re-fetched every 15s; job actions (`refreshJobs`) invalidate the
+  wallet too. There is **no Withdraw button** (no endpoint). The card badge is real: "Verified" only when the wallet is ready, "Setup incomplete"
+  when `trustline_created` is false (no badge on someone else's wallet). A wallet with `trustline_created: false` shows **Set up
+  wallet** (either role; `POST /wallet/generate` if the account has no wallet, else `/wallet/me/bootstrap`). The client wallet page
+  has no design — it is the provider's.
+- **Dashboard numbers are the server's** (`features/dashboard/hooks/useDashboardStats.ts`): provider overview =
+  `GET /providers/provider/dashboard/stats` (active, completed, pending_payments — a *count* —, reputation); client overview =
+  `GET /jobs/client/dashboard/stats` (active — posted and not yet paid, excluding disputed/cancelled —, completed, total_spent).
+  The client's active-job cards use the same definition so the count and the cards agree.
 - Auth: both dashboards sit behind `AuthGate` (see "App routing"); the header name, greeting and settings
   identity are the signed-in user's. "Logout" calls `POST /auth/logout`, clears tokens and the query cache.
   Avatars are initials — the mock's desktop avatar image wasn't supplied. The bell's badge is 0 (no
@@ -452,14 +475,14 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   under `lg:hidden`) applies here too.
 - **Overview** (`client/{ClientOverview,ClientJobCard,QuickActions}`, real): greeting; Active Jobs (a provider is chosen
   and the job isn't finished), Completed Jobs (COMPLETED + PAID), Total Spent (PAID); Quick Actions; the active jobs.
-  Job cards show title, amount, posted date and status only (no provider name/category/location — not on a job).
+  Job cards show title, amount, posted (and due) date, the assigned provider's name and place once chosen, and status.
   Not built: the client's Profile and Help pages.
 - **Find Providers** (`client/providers/{FindProvidersView,ProviderCard,FilterPill}`, real): `GET /providers/discover`
   (public; `skill` slug partial, `country`, `city` partial, `min_reputation`, `page`, `page_size`). The chips are native
   `<select>`s over a styled pill: **All Skills** (the real `GET /skills` catalog — the mock's "categories" don't exist on
   the backend), **Location** (country), **Rating** (min reputation). The text box can't be one server query: with text,
   `useProviderSearch` runs two (skill match, city match — names can't be searched) and pages the merge; with no text it's one paged request and the count/pager are the server's. Text is
-  debounced 350ms. The trailing "Filter" chip has no design (toasts "coming soon"). Avatars are initials; "what they
+  debounced 350ms. The mock's trailing "Filter" chip was removed (no further filter exists on the backend). Avatars are initials; "what they
   do" is the first skill; rows a profile has nothing for are left out. Names/skills come from each visible row's full profile (see "Real
   provider shapes").
 - **Provider preview** (`.../providers/[id]`, `ProviderPreviewView`, real): `GET /providers/{id}` — identity, reputation,
@@ -492,18 +515,13 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   grey-outline Cancel). Panel Cancel restores the saved values; sheet Cancel
   closes. Content unmounts on close, so each open starts from the saved values.
   - Personal Information: first/last name editable, **email read-only** with a "contact support" note —
-    `PATCH /users/me` takes only the names and there's no email-change flow. Avatar: pick an image (PNG/JPG/WebP ≤5 MB) → **real upload** (`POST /files/request-upload`, purpose `AVATAR`, then a PUT to the presigned storage URL) and it previews at once. **Showing it back is a workaround:** nothing on the user or provider profile links to an avatar file, so the file id is kept in localStorage per user and shown via `GET /files/{id}/download-url` — only in this browser and only on this screen (`useAvatar`). The storage bucket must allow browser uploads (CORS) — unverified. Initials until then (the mock's 3D avatar isn't an asset).
+    `PATCH /users/me` takes only the names and there's no email-change flow. Avatar: pick an image (PNG/JPG/WebP/GIF ≤15 MB) → real upload (see "Avatar" above); it shows at once and on every device. Initials until then. A client's sign-up country/state are now saved with `PATCH /users/me` right after OTP verification (`useVerifyOtp`; the endpoint takes `location_country/state/city/area`).
   - Provider Information: the registration form's fields on the **real saved profile** (`GET`/`PATCH
     /providers/me/profile`; skeleton while loading, retry on error, an empty form when the provider has no
     profile yet), same schema and the same category/state/area mapping as registration.
-  - Change Password: **Old + New only, as designed (no confirm field)**. **The backend has no signed-in
-    change-password endpoint** (only the OTP `forgot-password` → `reset-password`) — needs a new endpoint or
-    to route through the OTP flow. Test hook: old password `Wrong123` fails.
-  - **Account Settings** (desktop sub-nav item; its content wasn't in the mocks): I put the email-
-    notification switches there (role-specific; localStorage via `notificationPrefsStore` — the backend has
-    no preferences endpoint). Confirm that's what it's for.
-  - **Delete Account** (no mock; follows the other sheets): a *request* — type DELETE, then "Request
-    deletion" — because the backend only has admin-side GDPR erasure. Logout uses the shared `useLogout`.
+  - Change Password: **the backend has no old-password + new-password endpoint**, so it runs the emailed-code reset: "Send code" (`POST /auth/forgot-password` to the signed-in user's own email) → 6-digit code + new password (`POST /auth/reset-password`), which **revokes every session**, so the app signs out and goes to sign-in. The mock's Old Password field is gone.
+  - The mock's **Account Settings** panel (email-notification switches, localStorage-only) was **removed** — the backend has no preferences.
+  - **Delete Account**: the backend has no self-service deletion (admin-side only), so the sheet explains what deleting involves and offers **Email support** (a `mailto:` to `SUPPORT_EMAIL` prefilled with the account email) instead of a fake request. Logout uses the shared `useLogout`.
   - Not in the mocks, so not built: any settings for the client's own profile beyond the above (the mock's
     Provider Information item is providers-only; nothing client-specific was shown).
 - **Screens not built:** the client's Profile and Help pages, and the "success payments" modal (its image never

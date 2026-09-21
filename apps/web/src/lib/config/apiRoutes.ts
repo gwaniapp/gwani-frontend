@@ -23,11 +23,14 @@ export const apiRoutes = {
 
 	users: {
 		ME: "/api/v1/users/me",
+		PROFILE_PICTURE: "/api/v1/users/me/profile-picture",
 	},
 
 	wallet: {
 		ME: "/api/v1/wallet/me",
 		BOOTSTRAP: "/api/v1/wallet/me/bootstrap",
+		GENERATE: "/api/v1/wallet/generate",
+		TRANSACTIONS: "/api/v1/wallet/transactions",
 		LINK_CHALLENGE: "/api/v1/wallet/link/challenge",
 		LINK_VERIFY: "/api/v1/wallet/link/verify",
 		LINK: "/api/v1/wallet/link",
@@ -37,12 +40,18 @@ export const apiRoutes = {
 
 	providers: {
 		DISCOVER: "/api/v1/providers/discover",
+		SEARCH: "/api/v1/providers/search",
 		byId: (id: string) => `/api/v1/providers/${id}`,
 		ME_PROFILE: "/api/v1/providers/me/profile",
+		DASHBOARD_STATS: "/api/v1/providers/provider/dashboard/stats",
+		DASHBOARD_JOBS: "/api/v1/providers/provider/dashboard/jobs",
+		WORK_HISTORY: "/api/v1/providers/me/work-history",
 	},
 
 	jobs: {
 		BASE: "/api/v1/jobs",
+		CLIENT_DASHBOARD_STATS: "/api/v1/jobs/client/dashboard/stats",
+		CLIENT_DASHBOARD_JOBS: "/api/v1/jobs/client/dashboard/jobs",
 		byId: (id: string) => `/api/v1/jobs/${id}`,
 		byIdEvents: (id: string) => `/api/v1/jobs/${id}/events`,
 		byIdTransitions: (id: string) => `/api/v1/jobs/${id}/transitions`,
@@ -60,7 +69,6 @@ export const apiRoutes = {
 	},
 
 	files: {
-		REQUEST_UPLOAD: "/api/v1/files/request-upload",
 		byIdDownloadUrl: (id: string) => `/api/v1/files/${id}/download-url`,
 	},
 

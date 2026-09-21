@@ -1,3 +1,4 @@
+import { formatUserLocation } from "@/lib/providers";
 import type { Job, JobStateTransition, JobStatus } from "@/lib/api/types";
 
 /**
@@ -15,10 +16,22 @@ export interface DashboardJob {
 	status: JobStatus;
 	/** ISO date the job was posted. */
 	date: string;
+	/** The other side, by name: the client on a provider's cards, the assigned provider on a client's. Absent until known (a job with no provider yet). */
+	person?: string;
+	/** Where the assigned provider is — client cards only (a provider's own list carries their own location, which says nothing new). */
+	place?: string;
+	/** ISO datetime the client asked for the work by, when they set one. */
+	dueDate?: string;
 }
 
 export function toDashboardJob(job: Job): DashboardJob {
+	const other = job.client ?? job.provider;
+	const person = other ? [other.first_name, other.last_name].filter(Boolean).join(" ") : "";
+	const place = job.provider ? formatUserLocation(job.location) : "";
 	return {
+		person: person || undefined,
+		place: place || undefined,
+		dueDate: job.due_date ?? undefined,
 		id: job.id,
 		title: job.title,
 		priceAmount: Number(job.price_amount),
@@ -78,9 +91,11 @@ const STEPS: Array<{ status: JobStatus; label: string }> = [
  * job shows through Completed (a dispute can only be raised there); a CANCELLED
  * one shows only what it reached before.
  */
-export function buildTimeline(job: Pick<Job, "status" | "created_at">, transitions: JobStateTransition[]): TimelineStep[] {
+export function buildTimeline(job: Pick<Job, "status" | "created_at" | "timeline">, transitions: JobStateTransition[]): TimelineStep[] {
 	const dateOf = new Map<JobStatus, string>();
-	for (const transition of transitions) dateOf.set(transition.to, transition.created_at);
+	// The job's own timeline (`GET /jobs/{id}`) has dates; the transitions list is the fallback (it has been observed empty).
+	for (const step of job.timeline ?? []) if (step.date) dateOf.set(step.status, step.date);
+	for (const transition of transitions) if (!dateOf.has(transition.to)) dateOf.set(transition.to, transition.created_at);
 	dateOf.set("POSTED", job.created_at);
 
 	let furthest = STEPS.findIndex((step) => step.status === job.status);

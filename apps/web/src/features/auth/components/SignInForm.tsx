@@ -15,7 +15,7 @@ import { useSignIn } from "@/features/auth/hooks/useSignIn";
 const LABEL_CLASS = "text-b4 md:text-xl md:font-normal";
 const INPUT_CLASS = "md:h-15.5";
 
-/** Sign-in. Simulated end to end — see `useSignIn`. */
+/** Sign-in (`useSignIn`), with links to sign up and to "Forgot Password?". */
 function SignInForm() {
 	const form = useForm<SignInValues>({
 		resolver: zodResolver(signInSchema),
