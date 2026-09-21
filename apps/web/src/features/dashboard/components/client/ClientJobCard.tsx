@@ -16,7 +16,7 @@ function ClientJobCard({ job }: { job: DashboardJob }) {
 	return (
 		<Link
 			href={`/client/dashboard/jobs/${job.id}`}
-			className="group grid gap-y-2 rounded-2xl border border-transparent bg-white p-4 shadow-[0_4px_24px_rgb(0_0_0/0.06)] outline-none transition-colors [grid-template-areas:'title_view'_'amount_amount'_'posted_posted'_'status_status'] [grid-template-columns:minmax(0,1fr)_auto] hover:border-primary-400 focus-visible:border-primary-400 focus-visible:ring-2 focus-visible:ring-primary-200 md:items-center md:gap-x-8 md:gap-y-2 md:rounded-3xl md:px-6 md:py-5 md:[grid-template-areas:'title_status_view'_'amount_status_view'_'posted_status_view'] md:[grid-template-columns:minmax(0,1.3fr)_minmax(0,1fr)_auto]"
+			className="group grid gap-y-2 rounded-2xl border border-transparent bg-white p-4 shadow-[0_4px_24px_rgb(0_0_0/0.06)] outline-none transition-colors [grid-template-areas:'title_view'_'amount_amount'_'posted_posted'_'status_status'] grid-cols-[minmax(0,1fr)_auto] hover:border-primary-400 focus-visible:border-primary-400 focus-visible:ring-2 focus-visible:ring-primary-200 md:items-center md:gap-x-8 md:gap-y-2 md:rounded-3xl md:px-6 md:py-5 md:[grid-template-areas:'title_status_view'_'amount_status_view'_'posted_status_view'] md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto]"
 		>
 			<h3 className="truncate text-b2 font-medium text-foreground [grid-area:title] md:text-s1 md:font-medium">{job.title}</h3>
 
