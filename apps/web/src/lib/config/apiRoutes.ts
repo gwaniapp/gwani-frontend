@@ -31,6 +31,7 @@ export const apiRoutes = {
 		BOOTSTRAP: "/api/v1/wallet/me/bootstrap",
 		GENERATE: "/api/v1/wallet/generate",
 		TRANSACTIONS: "/api/v1/wallet/transactions",
+		TRANSFER: "/api/v1/wallet/transfer",
 		LINK_CHALLENGE: "/api/v1/wallet/link/challenge",
 		LINK_VERIFY: "/api/v1/wallet/link/verify",
 		LINK: "/api/v1/wallet/link",

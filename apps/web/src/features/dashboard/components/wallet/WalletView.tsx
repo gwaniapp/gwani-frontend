@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Clock, Lock } from "lucide-react";
 import { Button } from "@repo/ui/button";
 import { toast } from "@repo/ui/sonner";
@@ -7,6 +8,7 @@ import { QueryError } from "@/components/QueryState";
 import { WalletAddressCard } from "@/components/WalletAddressCard";
 import { BalanceCard } from "@/features/dashboard/components/wallet/BalanceCard";
 import { RecentTransactions, type WalletTransaction } from "@/features/dashboard/components/wallet/RecentTransactions";
+import { WithdrawDialog } from "@/features/dashboard/components/wallet/WithdrawDialog";
 import { useJobs } from "@/features/jobs/hooks/useJobs";
 import { isWalletSetupIncomplete, useConnectWallet, useWallet, useWalletTransactions, walletErrorMessage } from "@/features/provider/hooks/useWallet";
 import { sumPrices } from "@/lib/jobs";
@@ -29,7 +31,8 @@ const TITLES = {
  *
  * Both requests are "live" here (never served from cache, re-fetched every 15s
  * and on focus) so the balance and payments track what happens on-chain.
- * There is no withdraw endpoint, so there is no Withdraw button. A custodial wallet
+ * Withdraw (`POST /wallet/transfer`, see `WithdrawDialog`) sends the on-hand balance to any
+ * Stellar address. A custodial wallet
  * that isn't fully set up (`trustline_created: false`) gets a "Set up wallet"
  * button (`POST /wallet/me/bootstrap`), needed before funding escrow.
  */
@@ -37,6 +40,7 @@ function WalletView({ role }: { role: Role }) {
 	const wallet = useWallet({ live: true });
 	const jobs = useJobs(role, { live: true });
 	const bootstrap = useConnectWallet();
+	const [withdrawOpen, setWithdrawOpen] = useState(false);
 
 	const all = jobs.data ?? [];
 	const loading = jobs.isPending;
@@ -53,7 +57,20 @@ function WalletView({ role }: { role: Role }) {
 
 	const needsSetup = wallet.data && !(wallet.data.funded && wallet.data.trustline_created) && wallet.data.type === "custodial";
 
-	const action = needsSetup ? (
+	const balance = Number(wallet.data?.usdc_balance ?? 0) || 0;
+	const withdraw = (
+		<Button
+			type="button"
+			variant="ghost"
+			size="large"
+			disabled={!wallet.data || balance <= 0}
+			className="w-64 max-w-full self-center bg-white text-foreground hover:bg-white/90 focus-visible:bg-white lg:w-auto lg:self-start lg:px-12"
+			onClick={() => setWithdrawOpen(true)}
+		>
+			Withdraw
+		</Button>
+	);
+	const setup = needsSetup ? (
 		<Button
 			type="button"
 			variant="ghost"
@@ -72,7 +89,13 @@ function WalletView({ role }: { role: Role }) {
 		>
 			Set up wallet
 		</Button>
-	) : undefined;
+	) : null;
+	const action = (
+		<div className="flex flex-col gap-3 self-center lg:flex-row lg:self-start">
+			{withdraw}
+			{setup}
+		</div>
+	);
 
 	return (
 		<div className="flex flex-col gap-6 lg:gap-8">
@@ -107,6 +130,10 @@ function WalletView({ role }: { role: Role }) {
 				<QueryError message="We couldn't load your wallet address." onRetry={() => void wallet.refetch()} />
 			) : (
 				<WalletAddressCard publicKey={wallet.data?.public_key ?? ""} ready={Boolean(wallet.data)} verified={wallet.data ? !isWalletSetupIncomplete(wallet.data) : undefined} />
+			)}
+
+			{wallet.data && (
+				<WithdrawDialog open={withdrawOpen} onOpenChange={setWithdrawOpen} available={balance} asset="USDC" ownAddress={wallet.data.public_key} />
 			)}
 
 			<RecentTransactions transactions={transactions} loading={history.isPending} error={history.isError} />

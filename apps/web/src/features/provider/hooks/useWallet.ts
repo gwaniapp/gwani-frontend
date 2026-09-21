@@ -5,7 +5,7 @@ import { apiRoutes } from "@/lib/config/apiRoutes";
 import { axiosAuth } from "@/lib/config/axios";
 import { FreighterError, signWalletChallenge } from "@/lib/freighter";
 import type { WalletMode } from "@/lib/stores/walletFlowStore";
-import type { ApiSuccessResponse, BootstrapWalletData, Wallet, WalletLinkChallengeData, WalletTransaction } from "@/lib/api/types";
+import type { ApiSuccessResponse, BootstrapWalletData, TransferResult, Wallet, WalletLinkChallengeData, WalletTransaction } from "@/lib/api/types";
 
 const WALLET_KEY = ["wallet", "me"];
 
@@ -51,6 +51,28 @@ function useWalletTransactions({ live = false }: { live?: boolean } = {}) {
 				params: { page: 1, page_size: 20 },
 			});
 			return data.data.items ?? [];
+		},
+	});
+}
+
+/**
+ * `POST /wallet/transfer` `{ destination, amount, memo? }` — sends the platform stablecoin from
+ * the active wallet to any Stellar address. Custodial: signed and submitted at once →
+ * `{ tx_hash }`. Linked (external): `{ type: "unsigned_xdr", xdr, message }` for the person
+ * to sign themselves. Only the on-hand balance is sendable (escrow isn't). Refreshes the
+ * wallet afterwards.
+ */
+function useTransfer() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		meta: { action: "wallet.transfer" },
+		mutationFn: async (values: { destination: string; amount: string; memo?: string }) => {
+			const { data } = await axiosAuth.post<ApiSuccessResponse<TransferResult>>(apiRoutes.wallet.TRANSFER, values);
+			return data.data;
+		},
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: WALLET_KEY });
 		},
 	});
 }
@@ -150,11 +172,12 @@ function walletErrorMessage(error: unknown): string {
 		}
 		return walletErrorMessage(error.cause);
 	}
-	return getApiErrorMessage(
-		error,
-		"We couldn't connect your wallet. Please try again.",
-		{ 409: "That wallet is already linked to an account, or you already have a linked wallet.", 400: "That doesn't look like a valid Stellar public key." },
-	);
+	return getApiErrorMessage(error, "We couldn't connect your wallet. Please try again.", {
+		409: "That wallet is already linked to an account, or you already have a linked wallet.",
+		400: "That doesn't look like a valid Stellar public key.",
+		// Also what the transfer endpoint answers when the network refuses the payment (`POST /wallet/transfer`).
+		500: "The network didn't accept that transfer. Check that the address can receive this asset (it needs a trustline) and that your balance covers it.",
+	});
 }
 
-export { isWalletSetupIncomplete, useConnectWallet, useWallet, useWalletTransactions, WALLET_KEY, walletErrorMessage };
+export { isWalletSetupIncomplete, useConnectWallet, useTransfer, useWallet, useWalletTransactions, WALLET_KEY, walletErrorMessage };

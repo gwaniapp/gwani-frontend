@@ -12,6 +12,7 @@ import { Input } from "@repo/ui/input";
 import { PasswordInput } from "@repo/ui/password-input";
 import { useResetPassword, useSendResetCode } from "@/features/auth/hooks/usePasswordReset";
 import { forgotPasswordSchema, resetPasswordSchema, type ForgotPasswordValues, type ResetPasswordValues } from "@/lib/validations/authValidations";
+import { digitsOnly, EMAIL_MAX, PASSWORD_MAX } from "@/lib/validations/rules";
 
 // Same desktop sizing as the sign-in form: 20px labels, 62px-tall fields.
 const LABEL_CLASS = "text-b4 md:text-xl md:font-normal";
@@ -70,7 +71,7 @@ function ForgotPasswordForm() {
 								<FormItem className="md:gap-2.5">
 									<FormLabel className={LABEL_CLASS}>Email Address</FormLabel>
 									<FormControl>
-										<Input type="email" autoComplete="email" placeholder="Enter your email address" className={INPUT_CLASS} {...field} />
+										<Input type="email" autoComplete="email" maxLength={EMAIL_MAX} placeholder="Enter your email address" className={INPUT_CLASS} {...field} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -117,7 +118,14 @@ function ForgotPasswordForm() {
 							<FormItem className="md:gap-2.5">
 								<FormLabel className={LABEL_CLASS}>Code</FormLabel>
 								<FormControl>
-									<Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6-digit code" className={INPUT_CLASS} {...field} />
+									<Input
+										inputMode="numeric"
+										autoComplete="one-time-code"
+										placeholder="6-digit code"
+										className={INPUT_CLASS}
+										{...field}
+										onChange={(event) => field.onChange(digitsOnly(event.target.value))}
+									/>
 								</FormControl>
 								<FormMessage />
 							</FormItem>
@@ -130,7 +138,7 @@ function ForgotPasswordForm() {
 							<FormItem className="md:gap-2.5">
 								<FormLabel className={LABEL_CLASS}>New Password</FormLabel>
 								<FormControl>
-									<PasswordInput autoComplete="new-password" placeholder="Enter new password" className={INPUT_CLASS} {...field} />
+									<PasswordInput autoComplete="new-password" maxLength={PASSWORD_MAX} placeholder="Enter new password" className={INPUT_CLASS} {...field} />
 								</FormControl>
 								<FormMessage />
 							</FormItem>

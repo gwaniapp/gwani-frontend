@@ -156,16 +156,29 @@ export interface JobStateTransition {
 	created_at: string;
 }
 
-/** `GET /jobs/{id}/escrow`. */
-export interface EscrowTransaction {
-	tx_hash: string;
-	operation: "fund" | "release" | "refund";
-	amount: string;
-	asset: string;
-	confirmed_at: string;
+/**
+ * One record of a job's escrow lifecycle, `GET /jobs/{id}/escrow` (client, assigned
+ * provider or admin). Funding is asynchronous — `POST .../escrow/fund` only *submits* the
+ * transaction — so these say where it stands. Confirmed live: `intent` (the spec says
+ * `operation`) is FUND / RELEASE / REFUND, `status` was "FAILED" with a JSON `error` string;
+ * other statuses are unobserved (treated as "pending" until `confirmed_at` is set).
+ */
+export interface EscrowRecord {
+	id: string;
+	job_id: string;
+	intent?: string;
+	operation?: string;
+	tx_hash: string | null;
+	status: string;
+	error?: string | null;
+	submitted_at: string;
+	confirmed_at: string | null;
 }
 
 export type WalletType = "custodial" | "linked";
+
+/** `POST /wallet/transfer` — a custodial wallet is signed and sent at once (`{ tx_hash }`); a linked one can't be, so an unsigned transaction comes back. */
+export type TransferResult = { tx_hash: string } | { type: "unsigned_xdr"; xdr: string; message?: string };
 
 /** `GET /wallet/me`. */
 export interface Wallet {

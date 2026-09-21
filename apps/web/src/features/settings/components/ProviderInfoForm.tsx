@@ -17,6 +17,7 @@ import { FORM_STYLES, FormActions, type FormLayout } from "@/features/settings/c
 import { SERVICE_CATEGORIES } from "@/lib/mock/providerOptions";
 import { profileToFormValues } from "@/lib/providerProfile";
 import { providerRegistrationSchema, type ProviderRegistrationValues } from "@/lib/validations/providerValidations";
+import { PLACE_MAX } from "@/lib/validations/rules";
 
 /**
  * Provider Information — the registration form's fields, editing the saved
@@ -89,6 +90,7 @@ function ProviderInfoFormBody({ layout, onDone, initial }: { layout: FormLayout;
 								<Textarea
 									rows={1}
 									placeholder="Write briefly about yourself"
+									maxLength={500}
 									className={cn("field-sizing-content resize-none", layout === "panel" ? "min-h-12 py-3 text-b3 xl:min-h-13 xl:text-b1 2xl:min-h-14" : "min-h-11 rounded-xl")}
 									{...field}
 								/>
@@ -132,7 +134,7 @@ function ProviderInfoFormBody({ layout, onDone, initial }: { layout: FormLayout;
 							<FormItem className={styles.item}>
 								<FormLabel className={styles.label}>Area</FormLabel>
 								<FormControl>
-									<Input autoComplete="address-level2" placeholder="Enter area" className={styles.field} {...field} />
+									<Input autoComplete="address-level2" maxLength={PLACE_MAX} placeholder="Enter area" className={styles.field} {...field} />
 								</FormControl>
 								<FormMessage />
 							</FormItem>

@@ -6,6 +6,7 @@ import { Select } from "@repo/ui/select";
 import { cn } from "@repo/ui/lib/utils";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@repo/ui/form";
 import { COUNTRIES, MOCK_STATES } from "@/lib/mock/locations";
+import { PLACE_MAX } from "@/lib/validations/rules";
 
 interface LocationFieldProps {
 	labelClassName?: string;
@@ -82,6 +83,7 @@ function StateField({ labelClassName, fieldClassName, itemClassName }: LocationF
 						) : (
 							<Input
 								autoComplete="address-level1"
+								maxLength={PLACE_MAX}
 								placeholder="Enter state or city"
 								className={fieldClassName}
 								{...field}

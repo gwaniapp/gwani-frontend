@@ -12,7 +12,7 @@ import { QueryError } from "@/components/QueryState";
 import { CompleteJobDialog, type CompleteStep } from "@/features/dashboard/components/jobs/CompleteJobDialog";
 import { ConfirmJobActionDialog } from "@/features/dashboard/components/jobs/ConfirmJobActionDialog";
 import { JobTimeline } from "@/features/dashboard/components/jobs/JobTimeline";
-import { useDispute, useFundEscrow, useJob, useJobTransitions, useReleaseEscrow } from "@/features/jobs/hooks/useJobs";
+import { latestFund, useDispute, useFundEscrow, useJob, useJobEscrow, useJobTransitions, useReleaseEscrow } from "@/features/jobs/hooks/useJobs";
 import { formatAmount, formatDate } from "@/lib/format";
 import { buildTimeline, toDashboardJob } from "@/lib/jobs";
 import { formatUserLocation } from "@/lib/providers";
@@ -74,9 +74,12 @@ function DetailSkeleton() {
  * dates from its history, the job's details, a payment note, and the actions the
  * status and role allow —
  *
- * - provider: Mark as Completed (IN_PROGRESS), Raise a dispute (COMPLETED);
- * - client: Fund escrow (PROVIDER_SELECTED), Release payment / Raise a dispute
- *   (COMPLETED), Find a provider (POSTED).
+ * - provider: Mark as Completed (IN_PROGRESS);
+ * - client: Fund escrow (PROVIDER_SELECTED — while a funding transaction is still being
+ *   confirmed the button gives way to a note, and after a failed attempt it reads "Try
+ *   funding again"), Release payment (COMPLETED), Find a provider (POSTED);
+ * - both: Raise a dispute while the job is FUNDED, IN_PROGRESS or COMPLETED — it asks for a
+ *   written reason (10–1000 characters), which the backend requires.
  *
  * The client screens had no design for this page: it reuses the provider's
  * layout. The job detail (`GET /jobs/{id}`) now carries the client's name and
@@ -87,6 +90,9 @@ function DetailSkeleton() {
 function JobDetailView({ id, role }: { id: string; role: Role }) {
 	const job = useJob(id);
 	const transitions = useJobTransitions(id, job.data?.status);
+	// Funding only *submits* the payment; the escrow records say whether it is still being confirmed or failed.
+	const escrow = useJobEscrow(id, role === "client" && job.data?.status === "PROVIDER_SELECTED");
+	const funding = escrow.data ? latestFund(escrow.data) : undefined;
 	const [completeOpen, setCompleteOpen] = useState(false);
 	const [completeStep, setCompleteStep] = useState<CompleteStep>("confirm");
 	const [fundOpen, setFundOpen] = useState(false);
@@ -192,7 +198,20 @@ function JobDetailView({ id, role }: { id: string; role: Role }) {
 						<h2 id="payment-info" className="text-s1 font-medium text-foreground">
 							Payment Information
 						</h2>
-						<p className="mt-3 max-w-md text-b3 text-foreground">{PAYMENT_NOTE[role][status]}</p>
+						<p className="mt-3 max-w-md text-b3 text-foreground">
+							{role === "client" && status === "PROVIDER_SELECTED" && funding?.state === "pending"
+								? "Your payment has been sent to the network and is waiting for confirmation. This page updates by itself."
+								: PAYMENT_NOTE[role][status]}
+						</p>
+						{role === "client" && status === "PROVIDER_SELECTED" && funding?.state === "failed" && (
+							<p role="alert" className="mt-3 max-w-md text-b3 text-danger-600">
+								Your last payment attempt could not be confirmed. It may already have been taken from your wallet, so check{" "}
+								<Link href="/client/dashboard/wallet" className="font-medium underline underline-offset-4">
+									Recent Transactions
+								</Link>{" "}
+								before trying again.
+							</p>
+						)}
 					</section>
 
 					{role === "provider" && status === "IN_PROGRESS" && (
@@ -214,9 +233,9 @@ function JobDetailView({ id, role }: { id: string; role: Role }) {
 							<Link href="/client/dashboard/providers">Find a provider</Link>
 						</Button>
 					)}
-					{role === "client" && status === "PROVIDER_SELECTED" && (
+					{role === "client" && status === "PROVIDER_SELECTED" && funding?.state !== "pending" && (
 						<Button type="button" size="giant" className="w-full rounded-lg" onClick={() => setFundOpen(true)}>
-							Fund escrow
+							{funding?.state === "failed" ? "Try funding again" : "Fund escrow"}
 						</Button>
 					)}
 					{role === "client" && status === "COMPLETED" && (
@@ -225,7 +244,7 @@ function JobDetailView({ id, role }: { id: string; role: Role }) {
 						</Button>
 					)}
 
-					{status === "COMPLETED" && (
+					{(status === "FUNDED" || status === "IN_PROGRESS" || status === "COMPLETED") && (
 						<Button
 							type="button"
 							variant="outline"
@@ -255,7 +274,7 @@ function JobDetailView({ id, role }: { id: string; role: Role }) {
 				question="Lock this payment in escrow?"
 				detail="The amount is taken from your Gwani wallet and held safely. It's only released to the provider when you confirm the work is done."
 				confirmLabel="Fund escrow"
-				successMessage="Escrow funded. The provider can start work."
+				successMessage="Payment submitted. We'll confirm it on the network in a moment."
 				mutation={fund}
 			/>
 			<ConfirmJobActionDialog
@@ -277,7 +296,8 @@ function JobDetailView({ id, role }: { id: string; role: Role }) {
 				title="Raise a Dispute"
 				description="Hold the payment while the problem is looked at."
 				question="Are you sure you want to raise a dispute?"
-				detail="The payment stays locked until an admin resolves it. Only do this if you and the other side can't sort it out."
+				detail="The payment stays locked until an admin resolves it. Only do this if you and the other side can't sort it out. Your reason is kept on the job's history."
+				reason={{ label: "What went wrong?", placeholder: "Describe the problem so the team can look into it.", min: 10, max: 1000 }}
 				confirmLabel="Raise dispute"
 				successMessage="Dispute raised. The payment is on hold."
 				destructive

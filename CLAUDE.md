@@ -216,6 +216,15 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
 5. **Every `<form>` using `form.handleSubmit(...)` needs `noValidate`** or native HTML5
    constraint validation silently blocks the submit before react-hook-form/zod ever run.
 
+## Input validation (all forms)
+
+Shared rules live in `lib/validations/rules.ts` and are used by every schema: **names** 1–60 letters/spaces/hyphens/apostrophes (no digits or
+symbols), **email** ≤254, **password** the backend's rules + ≤128, **place** fields ≤120, **amount** numbers only (`sanitizeAmount` drops anything but
+digits and one "." as it is typed or pasted, ≤9 whole digits, ≤7 decimals, > 0), **one-time codes** digits only (`digitsOnly`; no `maxLength` on those
+inputs — the browser would cut a pasted "123 456" before the filter runs), **Stellar address** upper-cased and stripped of spaces (56 chars). Inputs also
+carry matching `maxLength`s. Job titles are capped at 80 (`JOB_TITLE_MAX`) and every place that shows a title truncates or wraps it. **Every Logout
+button asks first** ("Are you sure you want to log out?", `ConfirmLogoutDialog` — sidebar, mobile menu, account settings).
+
 ## Auth screens
 
 - `app/auth/layout.tsx` wraps every auth route in `components/layouts/AuthLayout.tsx`: single
@@ -407,11 +416,14 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   The six-step timeline now has **real dates** (`buildTimeline`: reached = the job got there or further; each step
   dated by the transition into it; DISPUTED shows through Completed; CANCELLED only what it reached). 404 → the
   branded not-found page. **Actions by role and status:** provider — *Mark as Completed* (IN_PROGRESS; the
-  designed confirm → success dialog; `POST /jobs/{id}/mark-completed`) and *Raise a dispute* (COMPLETED); client —
-  *Fund escrow* (PROVIDER_SELECTED; `POST /jobs/{id}/escrow/fund`; 422 = "insufficient balance or no trustline"),
-  *Release payment* (COMPLETED; `escrow/release`, irreversible), *Raise a dispute* (COMPLETED; `/dispute`), *Find a
-  provider* (POSTED). Fund/Release/Dispute have **no designs** — they use the completion dialog's frame
-  (`ConfirmJobActionDialog`) and the provider layout. Errors show inside the dialog; 409 (the other side just
+  designed confirm → success dialog; `POST /jobs/{id}/mark-completed`); client — *Fund escrow* (PROVIDER_SELECTED; `POST /jobs/{id}/escrow/fund`;
+  422 = "insufficient balance or no trustline"), *Release payment* (COMPLETED; `escrow/release`, irreversible); **both** — *Raise a dispute* while the
+  job is FUNDED, IN_PROGRESS or COMPLETED, which **needs a written reason** (`POST /jobs/{id}/dispute` `{ reason }`, 10–1000 chars — the dialog has a
+  reason box and checks the length before sending). **Funding is asynchronous:** `escrow/fund` only submits the transaction (`{ tx_hash }`); the job
+  moves to FUNDED then IN_PROGRESS later, so the client's job page reads `GET /jobs/{id}/escrow` (`useJobEscrow`, polled every 5s while pending): pending →
+  "waiting for confirmation" note and no Fund button; failed → a warning to check Recent Transactions first, and the button reads "Try funding
+  again". Fund/Release/Dispute have **no designs** — they use the completion dialog's frame (`ConfirmJobActionDialog`, whose typed reason/error live in
+  its body so every opening starts clean) and the provider layout. Errors show inside the dialog; 409 (the other side just
   acted) refreshes the job. **The "Reject this Job" dialog from the mocks was removed** (no backend endpoint: providers
   can only `mark-completed`; `dispute` only works on COMPLETED jobs) — it needs something like `POST /jobs/{id}/reject
   { reason }` plus a refund; restore it from git history (`RejectJobDialog`, `rejectJobSchema` still exists).
@@ -423,7 +435,10 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   Your Release* (COMPLETED jobs) and a **client's** In Escrow (the API reports 0 for clients) are derived from the jobs list.
   **Never cached (the user's call):** `useWallet`/`useWalletTransactions` are `staleTime: 0`, `gcTime: 0`, refetch-on-mount/
   focus, and on this page (`live: true`, also for `useJobs`) re-fetched every 15s; job actions (`refreshJobs`) invalidate the
-  wallet too. There is **no Withdraw button** (no endpoint). The card badge is real: "Verified" only when the wallet is ready, "Setup incomplete"
+  wallet too. **Withdraw** (both roles; `WithdrawDialog`, `POST /wallet/transfer` `{ destination, amount, memo? }`) sends the on-hand balance to any Stellar address
+  (validated: G-address, not your own, amount ≤ available with 7 decimals, memo ≤ 28; "Max" fills the balance). A custodial wallet answers `{ tx_hash }`
+  (shown with a testnet explorer link); a *linked* wallet gets `{ type: "unsigned_xdr", xdr, message }` to copy and sign in its own wallet; a 500
+  means the network refused it (destination needs a trustline). The "Verified" only when the wallet is ready, "Setup incomplete"
   when `trustline_created` is false (no badge on someone else's wallet). A wallet with `trustline_created: false` shows **Set up
   wallet** (either role; `POST /wallet/generate` if the account has no wallet, else `/wallet/me/bootstrap`). The client wallet page
   has no design — it is the provider's.
@@ -495,12 +510,13 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
   word must match the name or the "trade · place" line, accents/case ignored; only picking sets the value, half-typed
   text reverts on blur) over the first **20** providers from discover (`useProviderOptions`; each needs a profile fetch
   for its name, so it isn't raised) plus the `?provider=` one fetched by id — a provider beyond those 20 can't be
-  found by name here (the backend can't search names); Find Providers is the way to reach them. **Submitting is two
-  calls:** `POST /jobs` `{ title (3–200), description (10–5000), price_amount (decimal string ≤7 places), price_asset:
-  "USDC" }`, then `POST /jobs/{id}/select-provider` `{ provider_id }` (the provider's **user** id), then it lands on
-  the job page where **Fund escrow** is offered. If the job is created but choosing the provider fails it still
-  lands on the job, saying the job was saved and why the provider wasn't assigned. 403 → "Only client accounts can
-  post jobs". The button still reads "Next" (the design's label).
+  found by name here (the backend can't search names); Find Providers is the way to reach them. **Submitting is one call:** `POST /jobs` `{ provider_id, title
+  (3–200; the form caps it at **80**, `JOB_TITLE_MAX`, with a live counter), description (10–5000), skill_category?, due_date?, price_amount (decimal
+  string ≤7 places, ≤9 whole digits, typed as numbers only), price_asset: "USDC" }` — with `provider_id` the job is created *already assigned*
+  (`PROVIDER_SELECTED`), so there is no separate select-provider call to fail halfway. **Start date + Duration (days):** the backend has one
+  date field, `due_date` (target completion, ISO 8601), no start date or duration; the form asks for both (start today or later, 1–365 days) and
+  sends start + duration as `due_date` (end of that day, UTC), previewing "The work should be finished by …" (`lib/dates.ts`). Then it lands on the
+  job page where **Fund escrow** is offered. 403 → "Only client accounts can post jobs". The button still reads "Next" (the design's label).
 - **Settings / Account** (`features/settings/`, routes `/provider/dashboard/settings` and
   `/client/dashboard/settings`, one `SettingsView role=…`; from the supplied mocks). **Two looks, same
   forms:** below `lg` an "Account" page (avatar with camera badge, the shared wallet card, a menu list:
@@ -520,6 +536,11 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
     /providers/me/profile`; skeleton while loading, retry on error, an empty form when the provider has no
     profile yet), same schema and the same category/state/area mapping as registration.
   - Change Password: **the backend has no old-password + new-password endpoint**, so it runs the emailed-code reset: "Send code" (`POST /auth/forgot-password` to the signed-in user's own email) → 6-digit code + new password (`POST /auth/reset-password`), which **revokes every session**, so the app signs out and goes to sign-in. The mock's Old Password field is gone.
+  - **Download Gwani** (desktop sub-nav panel / mobile menu row + sheet; `DownloadApp`): installs the web app on the device (there is no app-store
+    listing). `InstallPromptListener` (mounted in the root layout) catches the browser's `beforeinstallprompt` early into `installStore`; with it
+    the button opens the browser's install dialog, without it (iPhone, Safari, Firefox) the panel shows the manual "Add to Home Screen" steps, and
+    once installed (`appinstalled` / standalone display mode) it says so. `public/favicon/site.webmanifest` now has `id`, `start_url`, `scope`.
+    Only Chromium browsers fire the prompt, so it can't be exercised in headless Chrome without dispatching a fake event (how it was tested).
   - The mock's **Account Settings** panel (email-notification switches, localStorage-only) was **removed** — the backend has no preferences.
   - **Delete Account**: the backend has no self-service deletion (admin-side only), so the sheet explains what deleting involves and offers **Email support** (a `mailto:` to `SUPPORT_EMAIL` prefilled with the account email) instead of a fake request. Logout uses the shared `useLogout`.
   - Not in the mocks, so not built: any settings for the client's own profile beyond the above (the mock's

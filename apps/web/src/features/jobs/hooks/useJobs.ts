@@ -6,7 +6,7 @@ import { getApiErrorMessage } from "@/lib/api/errorMessage";
 import { apiRoutes } from "@/lib/config/apiRoutes";
 import { axiosAuth } from "@/lib/config/axios";
 import { ACTIVE_STATUSES } from "@/lib/jobs";
-import type { ApiSuccessResponse, Job, JobStateTransition } from "@/lib/api/types";
+import type { ApiSuccessResponse, EscrowRecord, Job, JobStateTransition } from "@/lib/api/types";
 
 type Perspective = "provider" | "client";
 
@@ -173,19 +173,55 @@ function useReleaseEscrow(id: string) {
 	});
 }
 
-/** `POST /jobs/{id}/dispute` — either party, on a COMPLETED job; freezes the release until an admin resolves it. */
+/**
+ * `POST /jobs/{id}/dispute` `{ reason }` — either party, while the job is FUNDED,
+ * IN_PROGRESS or COMPLETED; the **reason (10–1000 characters) is required** and is kept in the job's
+ * history. Freezes the release until an admin resolves it.
+ */
 function useDispute(id: string) {
 	return useJobActionFor(id, {
 		action: "jobs.dispute",
 		path: apiRoutes.jobs.byIdDispute,
-		conflict: "A dispute can only be raised on a completed job.",
-		messages: { 403: "Only the client or the assigned provider can raise a dispute." },
+		conflict: "A dispute can only be raised while the job is funded, in progress or completed.",
+		messages: {
+			400: "Tell us what went wrong, in 10 to 1,000 characters.",
+			403: "Only the client or the assigned provider can raise a dispute.",
+		},
 	});
 }
 
 /**
- * One hook for every "POST to a job" action — completing, dispute, funding and
- * releasing escrow — so they behave the same: send, refresh the job and lists,
+ * `GET /jobs/{id}/escrow` — the job's on-chain payment records (funding, release, refund).
+ * Funding only *submits* the transaction, so this is how the page knows whether it is still
+ * being confirmed or failed. Polls every 5s while a funding record is pending. Only fetched
+ * when `enabled`.
+ */
+function useJobEscrow(id: string, enabled: boolean) {
+	return useQuery({
+		queryKey: [...JOBS_KEY, "escrow", id],
+		enabled,
+		staleTime: 0,
+		queryFn: async () => {
+			const { data } = await axiosAuth.get<ApiSuccessResponse<EscrowRecord[]>>(apiRoutes.escrow.byJobId(id));
+			return Array.isArray(data.data) ? data.data : [];
+		},
+		refetchInterval: (query) => (query.state.data && latestFund(query.state.data)?.state === "pending" ? 5_000 : false),
+	});
+}
+
+/** The most recent funding attempt on a job and where it stands: "pending" (submitted, not confirmed), "failed" or "confirmed". */
+function latestFund(records: EscrowRecord[]) {
+	const fund = records
+		.filter((record) => (record.intent ?? record.operation ?? "").toUpperCase() === "FUND")
+		.sort((a, b) => b.submitted_at.localeCompare(a.submitted_at))[0];
+	if (!fund) return undefined;
+	const state = fund.status.toUpperCase() === "FAILED" ? "failed" : fund.confirmed_at ? "confirmed" : "pending";
+	return { record: fund, state } as const;
+}
+
+/**
+ * One hook for every "POST to a job" action — completing, dispute (with its `reason` body),
+ * funding and releasing escrow — so they behave the same: send, refresh the job and lists,
  * and turn the backend's state-machine errors (409 = the job isn't in the right
  * status any more, often because the other party just acted) into sentences via
  * `describe(error)`. The caller decides where to show it (dialogs keep it inline).
@@ -194,8 +230,8 @@ function useJobActionFor(id: string, config: JobAction) {
 	const queryClient = useQueryClient();
 	const mutation = useMutation({
 		meta: { action: config.action },
-		mutationFn: async () => {
-			const { data } = await axiosAuth.post<ApiSuccessResponse<unknown>>(config.path(id));
+		mutationFn: async (body?: { reason?: string }) => {
+			const { data } = await axiosAuth.post<ApiSuccessResponse<unknown>>(config.path(id), body);
 			return data.data;
 		},
 		onSuccess: () => refreshJobs(queryClient, id),
@@ -213,16 +249,17 @@ interface NewJob {
 	title: string;
 	description: string;
 	amount: string;
-	/** The provider's user id; when given, the job is assigned to them right after it's created. */
+	/** ISO 8601 datetime the work should be finished by (`due_date`). */
+	dueDate?: string;
+	/** The provider's user id; the job is created already assigned to them (`PROVIDER_SELECTED`). */
 	providerUserId?: string;
 }
 
 /**
- * Posts a job: `POST /jobs` `{ title, description, price_amount, price_asset }`
- * (the backend has no provider on create), then — if a provider was chosen —
- * `POST /jobs/{id}/select-provider` `{ provider_id }`. The two can fail
- * separately: the job may exist even if choosing the provider didn't work, so the
- * result says which part failed and the caller sends the person to the job.
+ * Posts a job: one call, `POST /jobs` `{ provider_id?, title, description, price_amount, price_asset, due_date? }`.
+ * With `provider_id` the job is created *already assigned* (`PROVIDER_SELECTED`), so there is no
+ * separate select-provider step that could fail halfway; the provider must be a PROVIDER account
+ * (400 otherwise).
  */
 function usePostJob() {
 	const queryClient = useQueryClient();
@@ -231,21 +268,16 @@ function usePostJob() {
 		meta: { action: "jobs.post" },
 		mutationFn: async (values: NewJob) => {
 			const { data } = await axiosAuth.post<ApiSuccessResponse<Job>>(apiRoutes.jobs.BASE, {
+				...(values.providerUserId ? { provider_id: values.providerUserId } : {}),
+				...(values.dueDate ? { due_date: values.dueDate } : {}),
 				title: values.title,
 				description: values.description,
 				price_amount: values.amount,
 				price_asset: "USDC",
 			});
-			const job = data.data;
-			if (!values.providerUserId) return { job, providerError: null as string | null };
-			try {
-				await axiosAuth.post(apiRoutes.jobs.byIdSelectProvider(job.id), { provider_id: values.providerUserId });
-				return { job: { ...job, status: "PROVIDER_SELECTED" as const, provider_id: values.providerUserId }, providerError: null as string | null };
-			} catch (error) {
-				return { job, providerError: getApiErrorMessage(error, "We couldn't assign that provider.", { 404: "That provider couldn't be found." }) };
-			}
+			return data.data;
 		},
-		onSuccess: ({ job }) => {
+		onSuccess: (job) => {
 			refreshJobs(queryClient, job.id);
 		},
 		onError: (error) => {
@@ -254,4 +286,4 @@ function usePostJob() {
 	});
 }
 
-export { JOBS_KEY, useDispute, useFundEscrow, useJob, useJobTransitions, useJobs, useMarkCompleted, usePostJob, useReleaseEscrow };
+export { JOBS_KEY, latestFund, useDispute, useFundEscrow, useJob, useJobEscrow, useJobTransitions, useJobs, useMarkCompleted, usePostJob, useReleaseEscrow };

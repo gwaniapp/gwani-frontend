@@ -10,6 +10,7 @@ import { useUpdateProfile } from "@/features/settings/hooks/useSettings";
 import { SUPPORT_EMAIL } from "@/lib/site";
 import { useCurrentUser } from "@/features/auth/hooks/useSession";
 import { profileSchema, type ProfileValues } from "@/lib/validations/settingsValidations";
+import { NAME_MAX } from "@/lib/validations/rules";
 
 /**
  * Personal Information: first name, last name, email. Only the names are
@@ -46,7 +47,7 @@ function PersonalInfoForm({ layout, onDone }: { layout: FormLayout; onDone?: () 
 							<FormItem className={styles.item}>
 								<FormLabel className={styles.label}>First Name</FormLabel>
 								<FormControl>
-									<Input autoComplete="given-name" placeholder="Enter your first name" className={styles.field} {...field} />
+									<Input autoComplete="given-name" maxLength={NAME_MAX} placeholder="Enter your first name" className={styles.field} {...field} />
 								</FormControl>
 								<FormMessage />
 							</FormItem>
@@ -59,7 +60,7 @@ function PersonalInfoForm({ layout, onDone }: { layout: FormLayout; onDone?: () 
 							<FormItem className={styles.item}>
 								<FormLabel className={styles.label}>Last Name</FormLabel>
 								<FormControl>
-									<Input autoComplete="family-name" placeholder="Enter your last name" className={styles.field} {...field} />
+									<Input autoComplete="family-name" maxLength={NAME_MAX} placeholder="Enter your last name" className={styles.field} {...field} />
 								</FormControl>
 								<FormMessage />
 							</FormItem>

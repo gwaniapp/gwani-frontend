@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
+import Script from "next/script";
 import { Toaster } from "@repo/ui/sonner";
 import { ReactQueryProvider } from "@/components/providers/ReactQueryProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { InstallPromptListener } from "@/components/providers/InstallPromptListener";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -56,10 +58,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 	return (
 		<html data-scroll-behavior="smooth" lang="en" className={`${manrope.variable} h-full antialiased`}>
 			<body className="min-h-full flex flex-col">
+				{/* Chrome fires `beforeinstallprompt` once and may do it before React has hydrated, so it's caught here, as early as possible,
+				    and picked up by `InstallPromptListener` (which powers Settings → Download Gwani). */}
+				<Script id="capture-install-prompt" strategy="beforeInteractive">
+					{`window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__gwaniInstallPrompt=e;});`}
+				</Script>
 				<ReactQueryProvider>
 					<AuthProvider>
 						{children}
 						<Toaster />
+						<InstallPromptListener />
 					</AuthProvider>
 				</ReactQueryProvider>
 			</body>

@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { cn } from "@repo/ui/lib/utils";
 import { DASHBOARD_CONFIG, type DashboardRole, type NavItem } from "@/features/dashboard/config";
+import { ConfirmLogoutDialog } from "@/features/auth/components/ConfirmLogoutDialog";
 import { useLogout } from "@/features/auth/hooks/useLogout";
 
 const ITEM =
@@ -23,6 +25,7 @@ function DashboardNav({ role, onNavigate }: { role: DashboardRole; onNavigate?: 
 	const { home, menu, general } = DASHBOARD_CONFIG[role];
 
 	const logout = useLogout(onNavigate);
+	const [confirmOpen, setConfirmOpen] = useState(false);
 
 	function renderItems(items: NavItem[]) {
 		return items.map(({ label, href, icon: Icon }) => {
@@ -52,12 +55,13 @@ function DashboardNav({ role, onNavigate }: { role: DashboardRole; onNavigate?: 
 			<ul className="mt-6 flex flex-col gap-2.5">
 				{renderItems(general)}
 				<li>
-					<button type="button" onClick={logout} className={cn(ITEM, "text-danger-600 hover:bg-danger-50")}>
+					<button type="button" onClick={() => setConfirmOpen(true)} className={cn(ITEM, "text-danger-600 hover:bg-danger-50")}>
 						<LogOut className="size-4" aria-hidden="true" />
 						Logout
 					</button>
 				</li>
 			</ul>
+			<ConfirmLogoutDialog open={confirmOpen} onOpenChange={setConfirmOpen} onConfirm={logout} />
 		</nav>
 	);
 }

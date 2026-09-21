@@ -16,6 +16,7 @@ import {
 	FormMessage,
 } from "@repo/ui/form";
 import { clientSignUpSchema, signUpSchema, type SignUpValues } from "@/lib/validations/authValidations";
+import { EMAIL_MAX, NAME_MAX, PASSWORD_MAX } from "@/lib/validations/rules";
 import { CountryField, StateField } from "@/components/forms/LocationFields";
 import { useSignUp } from "@/features/auth/hooks/useSignUp";
 import type { SignUpRole } from "@/lib/api/types";
@@ -74,6 +75,7 @@ function SignUpForm({ role }: { role: SignUpRole }) {
 									<FormControl>
 										<Input
 											autoComplete="given-name"
+											maxLength={NAME_MAX}
 											placeholder="Enter your first name"
 											className={INPUT_CLASS}
 											{...field}
@@ -93,6 +95,7 @@ function SignUpForm({ role }: { role: SignUpRole }) {
 									<FormControl>
 										<Input
 											autoComplete="family-name"
+											maxLength={NAME_MAX}
 											placeholder="Enter your last name"
 											className={INPUT_CLASS}
 											{...field}
@@ -114,6 +117,7 @@ function SignUpForm({ role }: { role: SignUpRole }) {
 									<Input
 										type="email"
 										autoComplete="email"
+										maxLength={EMAIL_MAX}
 										placeholder="Enter your email address"
 										className={INPUT_CLASS}
 										{...field}
@@ -133,6 +137,7 @@ function SignUpForm({ role }: { role: SignUpRole }) {
 								<FormControl>
 									<PasswordInput
 										autoComplete="new-password"
+										maxLength={PASSWORD_MAX}
 										placeholder="Enter password"
 										className={INPUT_CLASS}
 										{...field}

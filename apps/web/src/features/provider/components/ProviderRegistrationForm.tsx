@@ -15,6 +15,7 @@ import {
 	providerRegistrationSchema,
 	type ProviderRegistrationValues,
 } from "@/lib/validations/providerValidations";
+import { PLACE_MAX } from "@/lib/validations/rules";
 import { useProviderRegistration } from "@/features/provider/hooks/useProviderRegistration";
 
 // Same desktop bump as the sign-up form: 20px labels, 62px-tall fields.
@@ -65,6 +66,7 @@ function ProviderRegistrationForm() {
 										<Textarea
 											rows={1}
 											placeholder="Write briefly about yourself"
+											maxLength={500}
 											className="field-sizing-content min-h-11 resize-none md:min-h-15.5 md:py-4.5"
 											{...field}
 										/>
@@ -111,6 +113,7 @@ function ProviderRegistrationForm() {
 										<FormControl>
 											<Input
 												autoComplete="address-level2"
+												maxLength={PLACE_MAX}
 												placeholder="Enter area"
 												className={FIELD_CLASS}
 												{...field}

@@ -9,6 +9,7 @@ import { Input } from "@repo/ui/input";
 import { PasswordInput } from "@repo/ui/password-input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@repo/ui/form";
 import { signInSchema, type SignInValues } from "@/lib/validations/authValidations";
+import { EMAIL_MAX, PASSWORD_MAX } from "@/lib/validations/rules";
 import { useSignIn } from "@/features/auth/hooks/useSignIn";
 
 // Same desktop bump as the sign-up form: 20px labels, 62px-tall fields.
@@ -48,6 +49,7 @@ function SignInForm() {
 									<Input
 										type="email"
 										autoComplete="email"
+										maxLength={EMAIL_MAX}
 										placeholder="Enter your email address"
 										className={INPUT_CLASS}
 										{...field}
@@ -67,6 +69,7 @@ function SignInForm() {
 								<FormControl>
 									<PasswordInput
 										autoComplete="current-password"
+										maxLength={PASSWORD_MAX}
 										placeholder="Enter password"
 										className={INPUT_CLASS}
 										{...field}

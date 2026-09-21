@@ -1,7 +1,9 @@
 "use client";
 
-import { ChevronRight, Headset, KeyRound, LogOut, Store, Trash2, User, type LucideIcon } from "lucide-react";
+import { useState } from "react";
+import { ChevronRight, Download, Headset, KeyRound, LogOut, Store, Trash2, User, type LucideIcon } from "lucide-react";
 import { cn } from "@repo/ui/lib/utils";
+import { ConfirmLogoutDialog } from "@/features/auth/components/ConfirmLogoutDialog";
 import { useLogout } from "@/features/auth/hooks/useLogout";
 import type { SheetId } from "@/features/settings/types";
 import { SUPPORT_EMAIL } from "@/lib/site";
@@ -25,6 +27,7 @@ function Row({ icon: Icon, label, danger, ...props }: { icon: LucideIcon; label:
  */
 function AccountMenu({ isProvider, onOpen }: { isProvider: boolean; onOpen: (sheet: SheetId) => void }) {
 	const logout = useLogout();
+	const [confirmOpen, setConfirmOpen] = useState(false);
 
 	return (
 		<nav aria-label="Account" className="flex flex-col divide-y divide-border">
@@ -44,10 +47,12 @@ function AccountMenu({ isProvider, onOpen }: { isProvider: boolean; onOpen: (she
 
 			<div className="flex flex-col pt-2">
 				<p className="px-1 py-3 text-b1 text-neutral-800">Account Settings</p>
+				<Row icon={Download} label="Download Gwani" onClick={() => onOpen("download")} />
 				<Row icon={KeyRound} label="Change Password" danger onClick={() => onOpen("password")} />
-				<Row icon={LogOut} label="Logout" danger onClick={logout} />
+				<Row icon={LogOut} label="Logout" danger onClick={() => setConfirmOpen(true)} />
 				<Row icon={Trash2} label="Delete Account" danger onClick={() => onOpen("delete")} />
 			</div>
+			<ConfirmLogoutDialog open={confirmOpen} onOpenChange={setConfirmOpen} onConfirm={logout} />
 		</nav>
 	);
 }

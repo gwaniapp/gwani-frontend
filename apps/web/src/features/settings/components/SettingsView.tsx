@@ -8,6 +8,7 @@ import { WalletAddressCard } from "@/components/WalletAddressCard";
 import { AccountMenu } from "@/features/settings/components/AccountMenu";
 import { AvatarUpload } from "@/features/settings/components/AvatarUpload";
 import { DeleteAccount } from "@/features/settings/components/DeleteAccount";
+import { DownloadApp } from "@/features/settings/components/DownloadApp";
 import { PasswordForm } from "@/features/settings/components/PasswordForm";
 import { PersonalInfoForm } from "@/features/settings/components/PersonalInfoForm";
 import { ProviderInfoForm } from "@/features/settings/components/ProviderInfoForm";
@@ -20,6 +21,7 @@ const SHEETS: Record<SheetId, { title: string; description: string; danger?: boo
 	personal: { title: "Personal Information", description: "Edit your name." },
 	provider: { title: "Provider Information", description: "Edit the details of the service you provide." },
 	password: { title: "Change Password", description: "We'll email you a code so you can set a new password." },
+	download: { title: "Download Gwani", description: "Install Gwani on this device." },
 	delete: { title: "Delete Account", description: "Our team erases your account and personal data.", danger: true },
 };
 
@@ -28,6 +30,7 @@ const NAV: Array<{ label: string; providerOnly?: boolean; danger?: boolean } & (
 	{ label: "Personal Information", panel: "personal" },
 	{ label: "Provider Information", panel: "provider", providerOnly: true },
 	{ label: "Change Password", panel: "password" },
+	{ label: "Download Gwani", panel: "download" },
 	{ label: "Delete Account", sheet: "delete", danger: true },
 ];
 
@@ -49,8 +52,8 @@ function AccountHeader({ centered }: { centered?: boolean }) {
  * Account settings, from the mocks, trimmed to what the backend supports: below
  * `lg`, an "Account" page (avatar, wallet, a menu list) where each item opens a
  * drawer; from `lg`, a sub-nav with an inline panel for Personal Information,
- * Provider Information and Change Password (a normal page on desktop, a drawer on
- * mobile), and Delete Account opening as a modal. "Provider Information" is
+ * Provider Information, Change Password and Download Gwani (a normal page on
+ * desktop, a drawer on mobile), and Delete Account opening as a modal. "Provider Information" is
  * providers' only. The same forms serve both looks (`layout="panel" | "sheet"`).
  *
  * Change Password runs the backend's emailed-code reset; Delete Account is an email
@@ -126,6 +129,14 @@ function SettingsView({ role }: { role: DashboardRole }) {
 						<ProviderInfoForm layout="panel" />
 					</>
 				)}
+				{panel === "download" && (
+					<section aria-labelledby="download-heading" className="flex max-w-3xl flex-col gap-6">
+						<h2 id="download-heading" className="text-xl font-medium text-foreground">
+							Download Gwani
+						</h2>
+						<DownloadApp />
+					</section>
+				)}
 				{panel === "password" && (
 					<section aria-labelledby="password-heading" className="flex max-w-3xl flex-col gap-6">
 						<div className="flex flex-col gap-1">
@@ -143,6 +154,7 @@ function SettingsView({ role }: { role: DashboardRole }) {
 				{sheet === "personal" && <PersonalInfoForm layout="sheet" onDone={closeSheet} />}
 				{sheet === "provider" && <ProviderInfoForm layout="sheet" onDone={closeSheet} />}
 				{sheet === "password" && <PasswordForm onDone={closeSheet} />}
+				{sheet === "download" && <DownloadApp onDone={closeSheet} />}
 				{sheet === "delete" && <DeleteAccount onDone={closeSheet} />}
 			</SettingsSheet>
 		</div>

@@ -17,6 +17,7 @@ import { FORM_STYLES, FormActions, type FormLayout } from "@/features/settings/c
 import { logAction } from "@/lib/logger";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { resetPasswordSchema, type ResetPasswordValues } from "@/lib/validations/authValidations";
+import { digitsOnly, PASSWORD_MAX } from "@/lib/validations/rules";
 
 /**
  * Change Password. **The backend has no "old password + new password" endpoint**
@@ -112,7 +113,14 @@ function PasswordForm({ layout = "sheet", onDone }: { layout?: FormLayout; onDon
 						<FormItem className={styles.item}>
 							<FormLabel className={styles.label}>Code</FormLabel>
 							<FormControl>
-								<Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6-digit code" className={styles.field} {...field} />
+								<Input
+									inputMode="numeric"
+									autoComplete="one-time-code"
+									placeholder="6-digit code"
+									className={styles.field}
+									{...field}
+									onChange={(event) => field.onChange(digitsOnly(event.target.value))}
+								/>
 							</FormControl>
 							<FormMessage />
 						</FormItem>
@@ -125,7 +133,7 @@ function PasswordForm({ layout = "sheet", onDone }: { layout?: FormLayout; onDon
 						<FormItem className={styles.item}>
 							<FormLabel className={styles.label}>New Password</FormLabel>
 							<FormControl>
-								<PasswordInput autoComplete="new-password" placeholder="Enter new password" className={styles.field} {...field} />
+								<PasswordInput autoComplete="new-password" maxLength={PASSWORD_MAX} placeholder="Enter new password" className={styles.field} {...field} />
 							</FormControl>
 							<p className="text-c1 text-neutral-500">At least 8 characters, with an uppercase letter, a lowercase letter and a number.</p>
 							<FormMessage />

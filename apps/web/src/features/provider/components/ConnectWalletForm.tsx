@@ -76,7 +76,9 @@ function ConnectWalletForm() {
 											spellCheck={false}
 											placeholder="Enter key to connect wallet"
 											className="md:h-15.5"
+											maxLength={56}
 											{...field}
+											onChange={(event) => field.onChange(event.target.value.replace(/\s/g, "").toUpperCase())}
 										/>
 									</FormControl>
 									<button
