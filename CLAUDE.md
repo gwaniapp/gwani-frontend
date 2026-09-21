@@ -136,7 +136,7 @@ apps/
               dashboards). The only app with code so far.
   landing/    the public marketing site — folder exists, NOT scaffolded yet
               (no package.json). Don't put a landing page in apps/web.
-  admin/      the staff app — folder exists, NOT scaffolded yet.
+  admin/      the staff console (Next.js 16, port 3001) — built, see "Admin app" below.
 packages/
   ui/                 shared design system (@repo/ui) — components, tokens
   eslint-config/
@@ -201,6 +201,29 @@ CLAUDE.md "Landmines" for why: tailwind-merge misclassifies the custom `text-*` 
 tokens as colors otherwise), Tailwind v4 + `@theme inline` token wiring, ESLint/TypeScript
 shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
 `@hookform/resolvers`, TanStack Query, zustand, axios, js-cookie, lucide-react).
+
+## Admin app (`apps/admin`)
+
+The staff console, on the same stack and design system as `apps/web` (Next.js 16, Tailwind v4, `@repo/ui`, Manrope, the floating-card shell: `AdminShell` mirrors the
+dashboards' `DashboardShell`, including the `lg:pt-36.5` / `lg:pl-67` spacing constants). `pnpm --filter admin dev` runs it on **port 3001** (web is 3000). It reuses the web
+app's infrastructure by *copy* (there is no shared package yet): the axios instances with bearer + refresh rotation, `authStore`, the same-origin `/api/proxy`,
+`errorMessage`, `logger`, `format`, `ConfirmLogoutDialog`, `StatCard`, `QueryState`. What differs: **cookie names are `gw_admin_*`** (cookies are per host, not per port, so the two apps
+would otherwise share and overwrite each other's session), the refresh lock key, and there is no "remember me" (the refresh cookie is session-only).
+
+- **Auth:** `/auth/sign-in` uses the ordinary `POST /auth/login`; only an `ADMIN` account gets in — anyone else has the freshly issued refresh token **revoked again** and is told this
+  console is for staff. `AuthGate` (the `(admin)` route-group layout) requires role ADMIN and clears a stale non-admin session. **There is no HTTP way to create the first admin**
+  (the backend does it out-of-band), so this console could only be tested with mocked responses plus a live check that a real client account is refused. An admin can promote others.
+- **Pages** (`app/(admin)/…`, data in `features/admin/hooks/useAdminData.ts`): **Overview** (`GET /admin/stats`: user/job counts, paid volume and escrow per asset, users by role, jobs by status, a
+  disputes banner); **Users** (`GET /admin/users`: search on email/name, role and suspended filters, server paging; a *Manage* dialog with details and the actions — suspend / reinstate,
+  make admin / remove admin role (`{ role: CLIENT|PROVIDER }`), export data (downloads the JSON of `GET …/export`), erase personal data (`DELETE`; you must type the user's email); an admin can't be
+  suspended or erased (the backend 400s — demote first) and can't act on their own account); **Jobs** (`GET /admin/jobs` by status; the job dialog shows details, the status history from
+  `GET /jobs/{id}/transitions` where a dispute's reason lives, the payment records from `GET /jobs/{id}/escrow`, and the **status override** `POST /admin/jobs/{id}/force-transition` `{ to, note≤500 }`);
+  **Disputes** (`GET /admin/disputes`, opens the same job dialog with *Release to provider* → PAID and *Refund the client* → CANCELLED shortcuts; a note is **required** when resolving a dispute);
+  **Audit log** (`GET /admin/audit-log`, filters action / target_type, `limit`+`offset` paging with Previous/Next since there is no total).
+- Every state-changing action goes through a confirm step *inside* the dialog (`ConfirmStep`: description, optional note for the audit log, optional type-to-confirm). List endpoints are read
+  with `readPage` (accepts `{data|items, total, page, page_size}` or a bare array — the spec says `data`, the rest of the API says `items`). **Unobserved shapes** (no admin account to read them):
+  the user/job/audit rows and `stats.volume` (read defensively: `volumeEntries` accepts an object or a list) — check the `[api:…]` console log on first real use.
+- The table frame uses `[contain:paint]`: without it Chrome's mobile emulation widened the whole page to the table's min-width even though the frame scrolls on its own.
 
 ## Landmines (inherited from peakline — still apply here)
 
