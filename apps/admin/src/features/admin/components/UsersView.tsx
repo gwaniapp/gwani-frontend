@@ -10,6 +10,7 @@ import { RoleBadge, UserStatusBadge } from "@/components/Badges";
 import { TableFrame, Td, Th } from "@/components/DataTable";
 import { FilterSelect, SearchBox } from "@/components/Filters";
 import { PageHeader } from "@/components/PageHeader";
+import { Panel } from "@/components/Panel";
 import { QueryError } from "@/components/QueryState";
 import { UserDialog } from "@/features/admin/components/UserDialog";
 import { USERS_PAGE_SIZE, useAdminUsers } from "@/features/admin/hooks/useAdminData";
@@ -62,13 +63,13 @@ function UsersView() {
 		<div className="flex flex-col gap-6 lg:gap-8">
 			<PageHeader title="Users" description="Everyone with a Gwani account. Search, review and manage accounts." />
 
-			<div className="flex flex-wrap items-end gap-4">
+			<Panel className="flex flex-wrap items-end gap-4 p-4 lg:p-5">
 				<SearchBox label="Search" value={query} onChange={change(setQuery)} placeholder="Email or name" />
 				<FilterSelect label="Role" value={role} onChange={change(setRole)} allLabel="All roles" options={ROLES} />
 				<FilterSelect label="Status" value={suspended} onChange={change(setSuspended)} allLabel="Any status" options={STATUSES} />
-			</div>
+			</Panel>
 
-			<p aria-live="polite" className="-mt-2 text-b3 text-neutral-500">
+			<p aria-live="polite" className="-mb-3 text-b3 text-neutral-500">
 				{users.data ? `${total.toLocaleString("en")} ${total === 1 ? "user" : "users"}` : " "}
 			</p>
 
@@ -81,7 +82,9 @@ function UsersView() {
 			) : users.isError ? (
 				<QueryError message="We couldn't load users." onRetry={() => void users.refetch()} />
 			) : rows.length === 0 ? (
-				<EmptyState icon={UserSearch} title="No users found" description={filtered ? "Try a different search or clear the filters." : "No one has signed up yet."} />
+				<Panel className="py-6">
+					<EmptyState icon={UserSearch} title="No users found" description={filtered ? "Try a different search or clear the filters." : "No one has signed up yet."} />
+				</Panel>
 			) : (
 				<div className={users.isPlaceholderData ? "opacity-60 transition-opacity" : "transition-opacity"}>
 					<TableFrame>

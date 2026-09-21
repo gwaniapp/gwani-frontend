@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowRight, Briefcase, ShieldAlert, UserX, Users } from "lucide-react";
+import { Briefcase, ShieldAlert, UserX, Users } from "lucide-react";
 import { Skeleton } from "@repo/ui/skeleton";
 import { PageHeader } from "@/components/PageHeader";
 import { QueryError } from "@/components/QueryState";
@@ -78,21 +77,6 @@ function OverviewView() {
 	return (
 		<div className="flex flex-col gap-6 lg:gap-8">
 			<PageHeader title="Overview" description="How the platform is doing right now." />
-
-			{data && data.jobs.disputed > 0 && (
-				<Link
-					href="/disputes"
-					className="flex items-center justify-between gap-4 rounded-2xl border border-danger-200 bg-danger-50 px-5 py-4 text-b3 text-danger-700 outline-none transition-colors hover:bg-danger-100/60 focus-visible:ring-2 focus-visible:ring-danger-300 lg:text-b1"
-				>
-					<span className="flex items-center gap-3">
-						<ShieldAlert className="size-5 shrink-0" aria-hidden="true" />
-						{data.jobs.disputed === 1 ? "1 job is in dispute and its payment is frozen." : `${data.jobs.disputed} jobs are in dispute and their payments are frozen.`}
-					</span>
-					<span className="inline-flex shrink-0 items-center gap-2 font-medium">
-						Review <ArrowRight className="size-4" aria-hidden="true" />
-					</span>
-				</Link>
-			)}
 
 			<section aria-label="Summary" className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 				<StatCard label="Total users" value={n(data?.users.total)} icon={Users} />

@@ -4,6 +4,7 @@ import { DashboardNav } from "@/features/dashboard/components/DashboardNav";
 import { DASHBOARD_CONFIG, type DashboardRole } from "@/features/dashboard/config";
 import { HeaderBackButton } from "@/features/dashboard/components/HeaderBackButton";
 import { HeaderSearch } from "@/features/dashboard/components/HeaderSearch";
+import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { MobileNav } from "@/features/dashboard/components/MobileNav";
 import { HeaderUser } from "@/features/dashboard/components/HeaderActions";
 
@@ -38,6 +39,7 @@ function DashboardShell({ role, children }: { role: DashboardRole; children: Rea
 						<MobileNav role={role} />
 						<div className="hidden h-full w-164 items-center gap-6 rounded-3xl border border-border bg-white px-7.5 lg:flex">
 							<HeaderSearch role={role} />
+							<NotificationBell role={role} className="size-14" />
 							<HeaderUser />
 						</div>
 					</div>

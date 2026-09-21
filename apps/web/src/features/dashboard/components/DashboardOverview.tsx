@@ -9,6 +9,7 @@ import { QueryError, ListSkeleton } from "@/components/QueryState";
 import { useCurrentUser } from "@/features/auth/hooks/useSession";
 import { JobCard } from "@/features/dashboard/components/JobCard";
 import { UserAvatar } from "@/features/dashboard/components/HeaderActions";
+import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { StatCard } from "@/features/dashboard/components/StatCard";
 import { useGreeting } from "@/features/dashboard/hooks/useGreeting";
 import { useJobs } from "@/features/jobs/hooks/useJobs";
@@ -59,6 +60,7 @@ function DashboardOverview() {
 					</p>
 				</div>
 				<div className="flex items-center gap-3 lg:hidden">
+					<NotificationBell role="provider" className="size-10" />
 					<UserAvatar className="size-10" />
 				</div>
 			</div>

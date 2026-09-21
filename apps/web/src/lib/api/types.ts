@@ -293,3 +293,22 @@ export interface FileDownloadUrlData {
 	download_url: string;
 	expires_at: string;
 }
+
+/**
+ * `GET /notifications` — the signed-in user's own inbox, newest first (a client or a provider; each
+ * sees only theirs). The spec doesn't describe the item, and no account had one when this was
+ * written, so it's read defensively (`lib/notifications.ts`): `read_at` is null until read; the text
+ * is a title and/or a message; a related job may be a `job_id` on the item or inside its `data`.
+ */
+export interface AppNotification {
+	id: string;
+	type?: string;
+	title?: string | null;
+	message?: string | null;
+	body?: string | null;
+	data?: Record<string, unknown> | null;
+	metadata?: Record<string, unknown> | null;
+	job_id?: string | null;
+	read_at: string | null;
+	created_at: string;
+}

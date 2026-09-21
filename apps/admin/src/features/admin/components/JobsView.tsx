@@ -10,6 +10,7 @@ import { Skeleton } from "@repo/ui/skeleton";
 import { TableFrame, Td, Th } from "@/components/DataTable";
 import { FilterSelect } from "@/components/Filters";
 import { PageHeader } from "@/components/PageHeader";
+import { Panel } from "@/components/Panel";
 import { QueryError } from "@/components/QueryState";
 import { JobDialog } from "@/features/admin/components/JobDialog";
 import { JOBS_PAGE_SIZE, useAdminJobs } from "@/features/admin/hooks/useAdminData";
@@ -34,7 +35,7 @@ function JobsView() {
 		<div className="flex flex-col gap-6 lg:gap-8">
 			<PageHeader title="Jobs" description="Every job on Gwani, whoever posted it." />
 
-			<div className="flex flex-wrap items-end gap-4">
+			<Panel className="flex flex-wrap items-end gap-4 p-4 lg:p-5">
 				<FilterSelect
 					label="Status"
 					value={status}
@@ -45,9 +46,9 @@ function JobsView() {
 					allLabel="All statuses"
 					options={STATUS_OPTIONS}
 				/>
-			</div>
+			</Panel>
 
-			<p aria-live="polite" className="-mt-2 text-b3 text-neutral-500">
+			<p aria-live="polite" className="-mb-3 text-b3 text-neutral-500">
 				{jobs.data ? `${total.toLocaleString("en")} ${total === 1 ? "job" : "jobs"}` : " "}
 			</p>
 
@@ -60,7 +61,9 @@ function JobsView() {
 			) : jobs.isError ? (
 				<QueryError message="We couldn't load jobs." onRetry={() => void jobs.refetch()} />
 			) : rows.length === 0 ? (
-				<EmptyState icon={Briefcase} title="No jobs found" description={status ? "No job has that status." : "No jobs have been posted yet."} />
+				<Panel className="py-6">
+					<EmptyState icon={Briefcase} title="No jobs found" description={status ? "No job has that status." : "No jobs have been posted yet."} />
+				</Panel>
 			) : (
 				<div className={jobs.isPlaceholderData ? "opacity-60 transition-opacity" : "transition-opacity"}>
 					<TableFrame>

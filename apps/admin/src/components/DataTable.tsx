@@ -6,7 +6,7 @@ import { cn } from "@repo/ui/lib/utils";
  */
 function TableFrame({ children, className }: { children: React.ReactNode; className?: string }) {
 	return (
-		<div className={cn("overflow-x-auto rounded-2xl border border-border bg-white [contain:paint]", className)}>
+		<div className={cn("overflow-x-auto rounded-2xl border border-border bg-white shadow-[0_2px_12px_rgb(0_0_0/0.03)] [contain:paint]", className)}>
 			<table className="w-full min-w-176 border-collapse text-left text-b3 lg:text-b1">{children}</table>
 		</div>
 	);

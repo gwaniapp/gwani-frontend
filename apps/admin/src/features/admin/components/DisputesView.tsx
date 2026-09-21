@@ -6,6 +6,7 @@ import { Button } from "@repo/ui/button";
 import { EmptyState } from "@repo/ui/empty-state";
 import { Skeleton } from "@repo/ui/skeleton";
 import { PageHeader } from "@/components/PageHeader";
+import { Panel } from "@/components/Panel";
 import { QueryError } from "@/components/QueryState";
 import { JobDialog } from "@/features/admin/components/JobDialog";
 import { useAdminDisputes } from "@/features/admin/hooks/useAdminData";
@@ -35,7 +36,9 @@ function DisputesView() {
 			) : disputes.isError ? (
 				<QueryError message="We couldn't load the disputes." onRetry={() => void disputes.refetch()} />
 			) : disputes.data.length === 0 ? (
-				<EmptyState icon={CircleCheck} title="No open disputes" description="Every payment is moving normally." />
+				<Panel className="py-6">
+					<EmptyState icon={CircleCheck} title="No open disputes" description="Every payment is moving normally." />
+				</Panel>
 			) : (
 				<ul className="flex flex-col gap-4">
 					{disputes.data.map((job) => (

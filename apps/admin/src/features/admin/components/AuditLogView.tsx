@@ -8,6 +8,7 @@ import { Skeleton } from "@repo/ui/skeleton";
 import { TableFrame, Td, Th } from "@/components/DataTable";
 import { FilterSelect, SearchBox } from "@/components/Filters";
 import { PageHeader } from "@/components/PageHeader";
+import { Panel } from "@/components/Panel";
 import { QueryError } from "@/components/QueryState";
 import { IdValue } from "@/components/CopyButton";
 import { AUDIT_PAGE_SIZE, useAuditLog } from "@/features/admin/hooks/useAdminData";
@@ -46,7 +47,7 @@ function AuditLogView() {
 		<div className="flex flex-col gap-6 lg:gap-8">
 			<PageHeader title="Audit log" description="A record of everything admins have done." />
 
-			<div className="flex flex-wrap items-end gap-4">
+			<Panel className="flex flex-wrap items-end gap-4 p-4 lg:p-5">
 				<SearchBox
 					label="Action"
 					value={action}
@@ -66,7 +67,7 @@ function AuditLogView() {
 					allLabel="Everything"
 					options={TARGETS}
 				/>
-			</div>
+			</Panel>
 
 			{log.isPending ? (
 				<div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading the audit log">
@@ -77,7 +78,9 @@ function AuditLogView() {
 			) : log.isError ? (
 				<QueryError message="We couldn't load the audit log." onRetry={() => void log.refetch()} />
 			) : rows.length === 0 ? (
-				<EmptyState icon={ScrollText} title="Nothing here" description={action || targetType ? "No entries match those filters." : "No admin actions have been recorded yet."} />
+				<Panel className="py-6">
+					<EmptyState icon={ScrollText} title="Nothing here" description={action || targetType ? "No entries match those filters." : "No admin actions have been recorded yet."} />
+				</Panel>
 			) : (
 				<div className={log.isPlaceholderData ? "opacity-60 transition-opacity" : "transition-opacity"}>
 					<TableFrame>

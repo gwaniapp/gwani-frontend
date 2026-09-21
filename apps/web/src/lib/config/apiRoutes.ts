@@ -37,6 +37,12 @@ export const apiRoutes = {
 		LINK: "/api/v1/wallet/link",
 	},
 
+	notifications: {
+		BASE: "/api/v1/notifications",
+		byIdRead: (id: string) => `/api/v1/notifications/${id}/read`,
+		byId: (id: string) => `/api/v1/notifications/${id}`,
+	},
+
 	skills: "/api/v1/skills",
 
 	providers: {

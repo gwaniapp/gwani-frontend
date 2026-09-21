@@ -78,10 +78,10 @@ does and where the backend falls short is under its own section; the short versi
   `/files/request-upload` route no longer exists in the spec.
 - **No backend endpoint, so not offered (the UI was trimmed to match, 2026-09-21):** a provider *rejecting* a job (the dialog was
   removed; needs e.g. `POST /jobs/{id}/reject`), an old-password change (done via the emailed-code reset instead), notification
-  preferences and the notification bell (both removed), self-service account deletion (an email to support instead), withdrawals
-  (no Withdraw button), and the mock's extra "Filter" chip on Find Providers. (Wallet **balance**, **transactions** and a provider's **escrow** are real since 2026-09-21 —
+  *preferences* (removed; the notification *inbox* itself is real since 2026-09-21 — see "Notifications"), self-service account deletion (an email to support instead), and the mock's extra
+  "Filter" chip on Find Providers. (Withdraw is real via `POST /wallet/transfer`.) (Wallet **balance**, **transactions** and a provider's **escrow** are real since 2026-09-21 —
   `GET /wallet/me` returns `usdc_balance` and `funds_in_escrow`, `GET /wallet/transactions` the list),
-  notifications (the bell shows no badge), a provider's trade title (first skill is used) and *public* work history.
+  a provider's trade title (first skill is used) and *public* work history.
   (Since 2026-09-21 the job detail returns the client's name and the provider's location, shown on the detail page; the job
   *cards* still show neither — `GET /jobs/client/dashboard/jobs` and `GET /providers/provider/dashboard/jobs` carry
   them, and `GET /providers/me/work-history` + `GET /providers/provider/dashboard/profile` exist but are not used.)
@@ -204,11 +204,14 @@ shared configs, and the `apps/web` app-level stack (react-hook-form + zod +
 
 ## Admin app (`apps/admin`)
 
-The staff console, on the same stack and design system as `apps/web` (Next.js 16, Tailwind v4, `@repo/ui`, Manrope, the floating-card shell: `AdminShell` mirrors the
-dashboards' `DashboardShell`, including the `lg:pt-36.5` / `lg:pl-67` spacing constants). `pnpm --filter admin dev` runs it on **port 3001** (web is 3000). It reuses the web
-app's infrastructure by *copy* (there is no shared package yet): the axios instances with bearer + refresh rotation, `authStore`, the same-origin `/api/proxy`,
-`errorMessage`, `logger`, `format`, `ConfirmLogoutDialog`, `StatCard`, `QueryState`. What differs: **cookie names are `gw_admin_*`** (cookies are per host, not per port, so the two apps
-would otherwise share and overwrite each other's session), the refresh lock key, and there is no "remember me" (the refresh cookie is session-only).
+The staff console, on the same stack and design system as `apps/web` (Next.js 16, Tailwind v4, `@repo/ui`, Manrope, indigo). `pnpm --filter admin dev` runs it on **port 3001**
+(web is 3000). **Layout** (`features/shell/`): a fixed full-height `w-64` sidebar (`SidebarContent`: brand, the five pages with a live red count on Disputes, and pinned at the bottom
+the signed-in admin + Logout, which asks first), a sticky frosted top bar (`TopBar`: breadcrumb "Console › Page" and a red "N disputes need review" shortcut when any exist; on
+phones the hamburger + logo), and pages as white cards (`Panel`, `TableFrame`) on the tinted page in a `max-w-7xl` column — keep the sidebar's `w-64` and the content's `lg:pl-64` in
+sync (`AdminShell`). Below `lg` the sidebar is a slide-in menu with the same contents. It reuses the web app's infrastructure by *copy* (there is no shared package yet): the axios
+instances with bearer + refresh rotation, `authStore`, the same-origin `/api/proxy`, `errorMessage`, `logger`, `format`, `ConfirmLogoutDialog`, `StatCard`, `QueryState`. What differs:
+**cookie names are `gw_admin_*`** (cookies are per host, not per port, so the two apps would otherwise share and overwrite each other's session), the refresh lock key, and there is
+no "remember me" (the refresh cookie is session-only). It has its own `error.tsx` and `not-found.tsx`.
 
 - **Auth:** `/auth/sign-in` uses the ordinary `POST /auth/login`; only an `ADMIN` account gets in — anyone else has the freshly issued refresh token **revoked again** and is told this
   console is for staff. `AuthGate` (the `(admin)` route-group layout) requires role ADMIN and clears a stale non-admin session. **There is no HTTP way to create the first admin**
@@ -223,6 +226,10 @@ would otherwise share and overwrite each other's session), the refresh lock key,
 - Every state-changing action goes through a confirm step *inside* the dialog (`ConfirmStep`: description, optional note for the audit log, optional type-to-confirm). List endpoints are read
   with `readPage` (accepts `{data|items, total, page, page_size}` or a bare array — the spec says `data`, the rest of the API says `items`). **Unobserved shapes** (no admin account to read them):
   the user/job/audit rows and `stats.volume` (read defensively: `volumeEntries` accepts an object or a list) — check the `[api:…]` console log on first real use.
+- **Modals** (`AdminDialog`): a **bottom sheet on phones** (pinned to the bottom, full width, slide-up, drag-handle bar, rounded top) and a centred modal from `sm`; capped at `92dvh`/`88dvh`
+  (`dvh`, so mobile browser chrome doesn't hide the bottom), the header stays put and only the body scrolls, so a long job history or a landscape phone never pushes the buttons out of reach.
+  Verified with a matrix at 360×640, 390×844, 812×375 (landscape), 768×1024 and 1280×800: dialog inside the viewport, title visible, confirm/erase/apply controls reachable after scrolling,
+  no sideways scroll with very long names/emails/titles.
 - The table frame uses `[contain:paint]`: without it Chrome's mobile emulation widened the whole page to the table's min-width even though the frame scrolls on its own.
 
 ## Landmines (inherited from peakline — still apply here)
@@ -238,6 +245,18 @@ would otherwise share and overwrite each other's session), the refresh lock key,
    the visual separately.
 5. **Every `<form>` using `form.handleSubmit(...)` needs `noValidate`** or native HTML5
    constraint validation silently blocks the submit before react-hook-form/zod ever run.
+
+## Notifications (web app)
+
+The backend added an inbox for clients and providers (`GET /notifications` paged newest-first, `GET /notifications/{id}`, `PATCH /notifications/{id}/read`, `DELETE /notifications/{id}` — a
+soft delete). The header bell is real again (`features/notifications/`, desktop header card + the mobile overview row): a badge with the unread count (there is **no unread-count
+endpoint**, so it counts the unread ones among the latest 30; polled every 30s and on focus, never cached) and a right-hand slide-in panel with the list — tapping an item marks it read and,
+when it names a job, opens `/{role}/dashboard/jobs/{id}`; each row has a delete; "Mark all as read" PATCHes each unread one (no bulk endpoint). **The item shape is unobserved** (both test
+accounts had empty inboxes and the spec doesn't describe it): `lib/notifications.ts` reads `title`/`message`/`body`, falls back to a humanised `type`, finds a job in `job_id` or `data.job_id`/
+`metadata.job_id`. Check the `[api:…]` log on the first real notification. Admins have no inbox in the console (the spec says client or provider).
+
+**Modal rule of thumb:** a dialog with its own `DialogContent` overrides must keep the base `overflow-y-auto` + a `dvh` max-height (never `overflow-hidden` on the content), and a grid
+dialog needs `grid-cols-[minmax(0,1fr)]` so a long unbreakable title can't widen it past the screen (the job-action dialogs did, on phones and tablets, until 2026-09-21).
 
 ## Input validation (all forms)
 
@@ -393,8 +412,7 @@ button asks first** ("Are you sure you want to log out?", `ConfirmLogoutDialog` 
   is a left slide-in (`MobileNav`, a Radix dialog restyled as a side panel, 300ms ease-out in /
   200ms ease-in out, backdrop timed to match via `DialogContent`'s `overlayClassName`), the page sits
   straight on the tinted background, and the page itself shows the bell + avatar (a page built for
-  this shell must render them under `lg:hidden`, as `DashboardOverview` does). There is **no notification bell** any more (no
-  notifications endpoint — the dead button was removed). The header **search is real** (`HeaderSearch`, desktop header only): a combobox listing matching
+  this shell must render them under `lg:hidden`, as `DashboardOverview` does). The **notification bell** is real (see "Notifications"). The header **search is real** (`HeaderSearch`, desktop header only): a combobox listing matching
   dashboard pages and the user's jobs by title/status (`useJobs(role, { enabled })`, fetched only once text is
   typed) and, for clients, a "Find providers for …" row that goes to `/client/dashboard/providers?q=…` (that page
   reads `?q=` and keys the view on it). Arrows/Enter/Escape work; logged as `dashboard.search`. The greeting and
@@ -472,7 +490,7 @@ button asks first** ("Are you sure you want to log out?", `ConfirmLogoutDialog` 
 - Auth: both dashboards sit behind `AuthGate` (see "App routing"); the header name, greeting and settings
   identity are the signed-in user's. "Logout" calls `POST /auth/logout`, clears tokens and the query cache.
   Avatars are initials — the mock's desktop avatar image wasn't supplied. The bell's badge is 0 (no
-  notifications endpoint exists), so no fake count shows on a real account.
+  notifications endpoint existed then); it now shows the real unread count (see "Notifications").
 
 ## App routing
 

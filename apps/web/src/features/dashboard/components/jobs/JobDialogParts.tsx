@@ -30,7 +30,7 @@ function JobDialog({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
 				showCloseButton={false}
-				className="gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-2xl sm:p-0"
+				className="max-h-[92dvh] grid-cols-[minmax(0,1fr)] gap-0 overflow-y-auto rounded-3xl p-0 sm:max-h-[90dvh] sm:max-w-2xl sm:p-0"
 				onInteractOutside={(event) => blockDismiss && event.preventDefault()}
 				onEscapeKeyDown={(event) => blockDismiss && event.preventDefault()}
 			>
@@ -55,7 +55,7 @@ function JobDialog({
 /** The lavender "which job is this" card at the top of a job dialog: title (and client, when known) on the left, amount on the right. */
 function JobSummary({ title, clientName, amount, asset }: { title: string; clientName?: string; amount: number; asset: string }) {
 	return (
-		<div className="flex items-start justify-between gap-4 rounded-2xl bg-primary-100/30 p-4 sm:rounded-3xl sm:p-6">
+		<div className="flex min-w-0 items-start justify-between gap-4 rounded-2xl bg-primary-100/30 p-4 sm:rounded-3xl sm:p-6">
 			<div className="flex min-w-0 flex-col gap-2 sm:gap-3">
 				<p className="truncate text-s1 font-medium text-foreground sm:text-xl sm:font-medium">{title}</p>
 				{clientName && (

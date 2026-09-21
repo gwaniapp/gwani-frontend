@@ -8,6 +8,7 @@ import { useCurrentUser } from "@/features/auth/hooks/useSession";
 import { ClientJobCard } from "@/features/dashboard/components/client/ClientJobCard";
 import { QuickActions } from "@/features/dashboard/components/client/QuickActions";
 import { UserAvatar } from "@/features/dashboard/components/HeaderActions";
+import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { StatCard } from "@/features/dashboard/components/StatCard";
 import { useGreeting } from "@/features/dashboard/hooks/useGreeting";
 import { useClientStats } from "@/features/dashboard/hooks/useDashboardStats";
@@ -47,6 +48,7 @@ function ClientOverview() {
 					<p className="text-b3 text-neutral-500 lg:text-b1">Here&apos;s what&apos;s happening with your jobs today.</p>
 				</div>
 				<div className="flex items-center gap-3 lg:hidden">
+					<NotificationBell role="client" className="size-10" />
 					<UserAvatar className="size-10" />
 				</div>
 			</div>
