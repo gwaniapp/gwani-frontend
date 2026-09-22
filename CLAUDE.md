@@ -18,6 +18,22 @@ domain concepts (wallets-as-accounts, transactions, payment links) map onto gwan
 domain (jobs, escrow, providers) — they don't; re-derive gwani's own data shapes from the
 brief above.
 
+## Production domains (set 2026-09-22)
+
+- `apps/landing` → `https://gwanni.app`
+- `apps/web` → `https://user.gwanni.app`
+- `apps/admin` → `https://admin.gwanni.app`
+- Backend API (fronting the same Railway deployment) → `https://api.gwanni.app` (Swagger UI
+  at `/docs`)
+
+Note the brand domain is spelled **gwanni.app** (double-n), not `gwani.app`. Each app's
+`GWANI_API_BASE_URL` (web, admin) and cross-app URL env vars (`NEXT_PUBLIC_APP_URL` on
+landing, `NEXT_PUBLIC_SITE_URL` on web/landing) now default to these in code
+(`lib/server/apiProxy.ts`, `lib/appUrl.ts`) when the env var itself is unset, and are also set
+explicitly in each app's `.env.local` for local dev against the real production backend. Set
+the same values as real env vars on each app's actual deployment (Vercel project settings or
+equivalent) — `.env.local` isn't picked up there.
+
 ## Backend
 
 A real backend already exists and is the source of truth for every domain shape — it is

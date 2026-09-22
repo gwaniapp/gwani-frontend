@@ -1,7 +1,9 @@
 // Server-only — must never be imported from a "use client" file or anything
 // else that ends up in the browser bundle.
 
-export const API_BASE_URL = process.env.GWANI_API_BASE_URL ?? "https://gwani-backend-production.up.railway.app";
+// Falls back to the backend's own production domain (fronting the same
+// Railway deployment) if unset.
+export const API_BASE_URL = process.env.GWANI_API_BASE_URL ?? "https://api.gwanni.app";
 
 // The backend's OpenAPI spec declares only a `bearer` security scheme (no
 // API-key header, unlike peakline's `peakline-ref`) — nothing to attach
