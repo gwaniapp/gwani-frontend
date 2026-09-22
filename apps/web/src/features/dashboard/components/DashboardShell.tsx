@@ -31,8 +31,9 @@ function DashboardShell({ role, children }: { role: DashboardRole; children: Rea
 				<div className="bg-primary-100/10 px-5 lg:pt-5 lg:pb-7">
 					<div className="flex h-16 items-center justify-between lg:h-24.5">
 						<div className="flex items-center gap-3 lg:gap-5">
-							<Link href={DASHBOARD_CONFIG[role].home} aria-label="Gwani dashboard" className="ml-0.5">
+							<Link href={DASHBOARD_CONFIG[role].home} aria-label="Gwani dashboard" className="ml-0.5 flex items-center gap-2.5">
 								<Logo size="lg" className="h-9 md:h-9 lg:h-13" />
+								<span className="rounded-full bg-primary-100/60 px-2.5 py-0.5 text-c1 font-medium text-primary-600">{DASHBOARD_CONFIG[role].label}</span>
 							</Link>
 							<HeaderBackButton />
 						</div>

@@ -10,11 +10,11 @@ import type { JobStatus } from "@repo/ui/job-status-badge";
 
 const PAGE_SIZE = 4;
 
-/** A finished job in a work-history list. The backend's job has no client name, so `clientName` is optional. */
+/** A finished job in a work-history list. `counterpartyName` is the *other* side — a client on a provider's list, a provider on a client's — and is optional since not every source carries one. */
 export interface WorkHistoryItem {
 	id: string;
 	title: string;
-	clientName?: string;
+	counterpartyName?: string;
 	/** Absent on a public provider's history (`job_history` carries no price). */
 	amount?: number;
 	asset?: string;
@@ -23,12 +23,13 @@ export interface WorkHistoryItem {
 }
 
 /**
- * Completed jobs. On desktop a bordered table-like list (title + client,
- * amount, status, date); on phones each job is a card of label/value rows. The
- * same markup does both — the labels and the phone-only client row are just
- * hidden at `lg`. The pager only shows below `lg`, as in the mocks.
+ * Completed jobs. On desktop a bordered table-like list (title + the other side's name, amount,
+ * status, date); on phones each job is a card of label/value rows. The same markup does both — the
+ * labels and the phone-only counterparty row are just hidden at `lg`. The pager only shows below `lg`,
+ * as in the mocks. `counterpartyLabel` ("Client" on a provider's own history, "Provider" on a client's)
+ * only matters when a row actually has a name to show.
  */
-function WorkHistory({ jobs: allJobs, viewAllHref }: { jobs: WorkHistoryItem[]; viewAllHref?: string }) {
+function WorkHistory({ jobs: allJobs, viewAllHref, counterpartyLabel = "Client" }: { jobs: WorkHistoryItem[]; viewAllHref?: string; counterpartyLabel?: string }) {
 	const [page, setPage] = useState(1);
 
 	const pageCount = Math.max(1, Math.ceil(allJobs.length / PAGE_SIZE));
@@ -67,7 +68,11 @@ function WorkHistory({ jobs: allJobs, viewAllHref }: { jobs: WorkHistoryItem[]; 
 								<span className="text-foreground lg:hidden">Title</span>
 								<div className="min-w-0 text-right lg:text-left">
 									<p className="truncate font-medium text-foreground lg:text-s2">{job.title}</p>
-									{job.clientName && <p className="hidden truncate text-b3 text-neutral-500 lg:block">Client: {job.clientName}</p>}
+									{job.counterpartyName && (
+										<p className="hidden truncate text-b3 text-neutral-500 lg:block">
+											{counterpartyLabel}: {job.counterpartyName}
+										</p>
+									)}
 								</div>
 							</div>
 
@@ -85,10 +90,10 @@ function WorkHistory({ jobs: allJobs, viewAllHref }: { jobs: WorkHistoryItem[]; 
 								</span>
 							</div>
 
-							{job.clientName && (
+							{job.counterpartyName && (
 								<div className="flex items-baseline justify-between gap-4 lg:hidden">
-									<span className="text-foreground">Client</span>
-									<span className="text-foreground">{job.clientName}</span>
+									<span className="text-foreground">{counterpartyLabel}</span>
+									<span className="text-foreground">{job.counterpartyName}</span>
 								</div>
 							)}
 

@@ -81,6 +81,7 @@ function ProfileView() {
 		.map((job) => ({
 			id: job.id,
 			title: job.title,
+			counterpartyName: job.client ? [job.client.first_name, job.client.last_name].filter(Boolean).join(" ") : undefined,
 			amount: Number(job.price_amount),
 			asset: job.price_asset,
 			date: job.updated_at ?? job.created_at,

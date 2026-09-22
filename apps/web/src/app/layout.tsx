@@ -57,7 +57,12 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
 	return (
 		<html data-scroll-behavior="smooth" lang="en" className={`${manrope.variable} h-full antialiased`}>
-			<body className="min-h-full flex flex-col">
+			{/* suppressHydrationWarning: browser extensions (Grammarly, etc.) inject their own
+			    attributes onto <body> — data-new-gr-c-s-check-loaded, data-gr-ext-installed —
+			    before React hydrates. That's a real mismatch React would otherwise warn about,
+			    but it's the extension's doing, not this app's, and only <body>'s own attributes
+			    are suppressed here — a genuine mismatch in its children still warns normally. */}
+			<body className="min-h-full flex flex-col" suppressHydrationWarning>
 				{/* Chrome fires `beforeinstallprompt` once and may do it before React has hydrated, so it's caught here, as early as possible,
 				    and picked up by `InstallPromptListener` (which powers Settings → Download Gwani). */}
 				<Script id="capture-install-prompt" strategy="beforeInteractive">

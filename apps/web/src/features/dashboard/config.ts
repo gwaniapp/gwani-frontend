@@ -12,6 +12,8 @@ export interface NavItem {
 
 interface DashboardConfig {
 	home: string;
+	/** Shown next to the logo (`DashboardShell`, `MobileNav`) so it's obvious at a glance which dashboard this is. */
+	label: string;
 	menu: NavItem[];
 	general: NavItem[];
 }
@@ -32,6 +34,7 @@ const general = (home: string): NavItem[] => [
 export const DASHBOARD_CONFIG: Record<DashboardRole, DashboardConfig> = {
 	provider: {
 		home: providerHome,
+		label: "Provider",
 		menu: [
 			{ label: "Overview", href: providerHome, icon: LayoutGrid },
 			{ label: "My Jobs", href: `${providerHome}/jobs`, icon: Briefcase },
@@ -42,6 +45,7 @@ export const DASHBOARD_CONFIG: Record<DashboardRole, DashboardConfig> = {
 	},
 	client: {
 		home: clientHome,
+		label: "Client",
 		menu: [
 			{ label: "Overview", href: clientHome, icon: LayoutGrid },
 			{ label: "Find Providers", href: `${clientHome}/providers`, icon: UserSearch },

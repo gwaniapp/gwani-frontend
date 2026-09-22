@@ -79,18 +79,7 @@ export const apiRoutes = {
 		byIdDownloadUrl: (id: string) => `/api/v1/files/${id}/download-url`,
 	},
 
-	// Admin surface exists on the backend but no admin app is planned yet —
-	// kept here so it's a one-line addition (like everything else) when one
-	// gets built, not a re-discovery.
-	admin: {
-		USERS: "/api/v1/admin/users",
-		byUserIdSuspend: (id: string) => `/api/v1/admin/users/${id}/suspend`,
-		byUserIdUnsuspend: (id: string) => `/api/v1/admin/users/${id}/unsuspend`,
-		byUserId: (id: string) => `/api/v1/admin/users/${id}`,
-		byUserIdExport: (id: string) => `/api/v1/admin/users/${id}/export`,
-		AUDIT_LOG: "/api/v1/admin/audit-log",
-		JOBS: "/api/v1/admin/jobs",
-		DISPUTES: "/api/v1/admin/disputes",
-		byJobIdForceTransition: (id: string) => `/api/v1/admin/jobs/${id}/force-transition`,
-	},
+	// The `/admin/*` surface (user suspension, GDPR export/erasure, dispute force-transition, audit log) is
+	// called from `apps/admin`, not from here — this app never signs in as an admin, so it has no reason to
+	// carry those routes. See `apps/admin/src/lib/config/apiRoutes.ts` for the full admin route table.
 };

@@ -11,7 +11,11 @@ import { initials } from "@/lib/format";
 
 const CARD = "rounded-3xl bg-white p-5 shadow-[0_4px_24px_rgb(0_0_0/0.06)] lg:min-h-60";
 
-/** Avatar (the profile picture when there is one, else initials), name, trade, location, wallet tag and star rating. */
+/**
+ * Avatar (the profile picture when there is one, else initials), name, trade, location, wallet tag and
+ * star rating. `rating`/`jobsDone` are provider-only (a client has no reputation) — the row is simply
+ * left out when they're not given.
+ */
 function ProfileIdentity({
 	name,
 	headline,
@@ -25,8 +29,8 @@ function ProfileIdentity({
 	/** What they do — omitted when unknown (the backend has no trade field; the first skill is used). */
 	headline?: string;
 	location?: string;
-	rating: number;
-	jobsDone: number;
+	rating?: number;
+	jobsDone?: number;
 	walletVerified?: boolean;
 	/** The person's own profile picture (only known for the signed-in user; someone else's has no public URL). */
 	avatarUrl?: string | null;
@@ -63,10 +67,12 @@ function ProfileIdentity({
 				{walletVerified && (
 					<span className="rounded-md bg-success-100 px-3 py-1 text-c2 text-[#0a7b4e] lg:text-b3">Verified Wallet</span>
 				)}
-				<div className="flex items-center gap-3">
-					<StarRating value={rating} size="md" />
-					<span className="text-c1 text-foreground lg:text-b1">({jobsDone} jobs done)</span>
-				</div>
+				{rating !== undefined && (
+					<div className="flex items-center gap-3">
+						<StarRating value={rating} size="md" />
+						<span className="text-c1 text-foreground lg:text-b1">({jobsDone ?? 0} jobs done)</span>
+					</div>
+				)}
 			</div>
 		</div>
 	);
@@ -132,4 +138,4 @@ function SkillsCard({ skills, className }: { skills: string[]; className?: strin
 	);
 }
 
-export { AboutCard, ProfileIdentity, ReputationCard, SkillsCard };
+export { AboutCard, ProfileIdentity, ReputationCard, SkillsCard, StatRow };

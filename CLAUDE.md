@@ -35,7 +35,7 @@ key → `POST /wallet/link/verify`). Escrow (`fund`/`release`/`refund` under
 FUNDED → IN_PROGRESS → COMPLETED → PAID`, plus `DISPUTED`/`CANCELLED`) are entirely
 server-side — this app never talks to Stellar/Horizon directly, it only calls these REST
 endpoints. An admin surface exists (`/admin/*`: user suspension, GDPR export/erasure,
-dispute force-transition) but no admin app is planned yet.
+dispute force-transition) — `apps/admin` calls it; see "Admin app" below.
 
 **The browser can't call the backend directly** — confirmed live, an OPTIONS preflight
 against it returns no `access-control-allow-origin` header for any origin tested. All API
