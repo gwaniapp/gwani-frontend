@@ -133,9 +133,9 @@ Turborepo + pnpm, same shape as peakline:
 ```
 apps/
   web/        Next.js 16 app (App Router) — the signed-in product (auth, both
-              dashboards). The only app with code so far.
-  landing/    the public marketing site — folder exists, NOT scaffolded yet
-              (no package.json). Don't put a landing page in apps/web.
+              dashboards).
+  landing/    the public marketing site (Next.js 16, port 3002) — built, see
+              "Landing page" below.
   admin/      the staff console (Next.js 16, port 3001) — built, see "Admin app" below.
 packages/
   ui/                 shared design system (@repo/ui) — components, tokens
@@ -231,6 +231,32 @@ no "remember me" (the refresh cookie is session-only). It has its own `error.tsx
   Verified with a matrix at 360×640, 390×844, 812×375 (landscape), 768×1024 and 1280×800: dialog inside the viewport, title visible, confirm/erase/apply controls reachable after scrolling,
   no sideways scroll with very long names/emails/titles.
 - The table frame uses `[contain:paint]`: without it Chrome's mobile emulation widened the whole page to the table's min-width even though the frame scrolls on its own.
+
+## Landing page (`apps/landing`)
+
+The public marketing site (Next.js 16, Tailwind v4, `@repo/ui`, Manrope). `pnpm --filter landing dev` runs it on **port 3002** (web is 3000, admin 3001). No auth, no API calls,
+no TanStack Query — it's a static page, so its `package.json` only carries `next`/`react`/`@repo/ui`/`lucide-react`. Built from a Figma frame ("Gwani Landing — Desktop", node
+`735:10524` in a file named "Peakline" that also holds an unrelated gwani-specific export) at a point where the Figma API had hit its plan's rate limit — recovered by reading the
+earlier full-dump tool-result file instead of re-fetching, so the text/layout/colors are faithful to the design but a few gaps are this app's own judgment calls, noted below.
+Every "Sign in" / "Get Started" / "Become a…" CTA crosses to `apps/web`'s real auth routes via `lib/appUrl.ts` (`NEXT_PUBLIC_APP_URL`, defaults to `localhost:3000` in dev) — there's
+nothing to sign in *to* here.
+
+- **Sections** (`features/landing/components/`, composed in `LandingPage.tsx`): `Navbar` (fixed, mobile slide-in panel) → `Hero` (primary-800 band, the exported `hero-img.svg`
+  collage) → `Solutions` ("We have solutions for your problems", `solutions-img.png`) → `Categories` ("Our categories", a tinted band) → `HowItWorks` ("Easiest way to get a service",
+  the exported `easy-get-service-img.svg` browser mockup) → `AudienceCta` (the "For Clients" / "For Providers" dual cards, `reliable-payment-img.svg` / `reliable-customers-img.svg`)
+  → `Footer`. The six image assets live in `packages/ui/src/assets/images/` (the user's own Figma exports) and are rendered as plain `<img src={...svg}.src>`, matching `Logo`'s own
+  pattern — not `next/image`, since local SVGs need `dangerouslyAllowSVG` to run through Next's optimizer and these are trusted static assets anyway.
+- **Two content gaps the Figma export didn't resolve, filled in rather than left as template placeholders:** the "Our categories" grid's per-card names (only "Design" and a
+  "View all categories" tile were recoverable; the rest fell back to an ambiguous template default) now use gwani's real category groups from `lib/mock/providerOptions.ts`
+  (`apps/web`) — 8 of the 9 groups get a tile, "View all categories" covers the rest. The footer's "Services" column was Figma-template copy unrelated to this product ("Digital
+  Marketing", "SEO for Business", "UI Design") — replaced with real category links instead of carried over as-is.
+- **The hero's "12k+ professionals" pill is placeholder marketing copy** (baked into `people.svg` itself, not editable from this code) — there's no real user count yet for a
+  20-day PoC. Re-export the asset with a real figure, or drop the pill, once there's data to back it.
+- **Responsive**: the Figma source is desktop-only (1440px designed width), so every breakpoint below that is this app's own design, mobile-first (`sm`/`lg`/`xl`). The two
+  `AudienceCta` cards go side-by-side only from `xl` (not `lg`) — below that they're full-width and roomy, so the image+text row inside each card also waits for `xl` to match; at
+  `xl` a card's own text column is only ~250px wide, so its CTA button additionally overrides the base `Button`'s `whitespace-nowrap` (`whitespace-normal`) as a safety net. Verified
+  with headless Chrome across 375–1920px: no horizontal scroll, no console errors, no layout overflow (checked via `scrollWidth` vs `clientWidth` on every major container, not just
+  the viewport — a flexbox child without `min-w-0` silently overflowed its card before this was caught that way).
 
 ## Landmines (inherited from peakline — still apply here)
 
