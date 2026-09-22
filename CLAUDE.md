@@ -525,14 +525,23 @@ button asks first** ("Are you sure you want to log out?", `ConfirmLogoutDialog` 
   if it's in the menu, it's already linked (menu items with no page 404). Client menu: Overview, Find
   Providers, Jobs, Profile, Wallet · Settings, Help. Built so far: the overview
   (`/client/dashboard`), Find Providers (`/client/dashboard/providers`), a provider's preview (`.../providers/[id]`), My Jobs
-  (`.../jobs`), Post a New Job (`.../jobs/new`) Settings, the job detail (`.../jobs/[id]`) and Wallet. Not built: the
-  client's Profile and Help (menu items that hit the branded 404). Everything in the "Provider
+  (`.../jobs`), Post a New Job (`.../jobs/new`) Settings, the job detail (`.../jobs/[id]`), Wallet and Profile (`.../profile`,
+  added 2026-09-22 — see below). Not built: Help (hits the branded 404, undesigned, out of scope for now). Everything in the "Provider
   dashboard" notes about the frame (fixed floating cards, spacing constants, mobile drawer, bell/avatar
   under `lg:hidden`) applies here too.
 - **Overview** (`client/{ClientOverview,ClientJobCard,QuickActions}`, real): greeting; Active Jobs (a provider is chosen
   and the job isn't finished), Completed Jobs (COMPLETED + PAID), Total Spent (PAID); Quick Actions; the active jobs.
   Job cards show title, amount, posted (and due) date, the assigned provider's name and place once chosen, and status.
-  Not built: the client's Profile and Help pages.
+- **Profile** (`client/ClientProfileView`, real, no mock — the client menu linked here from the start but the page was
+  never built, so it 404ed; added 2026-09-22): identity from `GET /users/me` (name, and `location` via
+  `formatUserLocation`, both real fields on that endpoint), a stats card reusing the overview's own numbers
+  (`useClientStats` — Total Spent, Completed Jobs; `StatRow` from `ProfileParts`, now exported), the wallet address
+  (`GET /wallet/me`), and a history of the client's `PAID` jobs with the assigned provider's name
+  (`WorkHistory`, `counterpartyLabel="Provider"`). Deliberately narrower than the provider's own profile — a client
+  has no bio, skills or reputation, so those cards and the star row don't appear (`ProfileIdentity`'s `rating`/
+  `jobsDone` are now optional for this reason; the row is only rendered when a rating is given).
+  `WorkHistoryItem.clientName` was renamed to `counterpartyName` for this (a provider's own Work History list now
+  also shows the client's name, via the same field, using the client info the dashboard job list already carries).
 - **Find Providers** (`client/providers/{FindProvidersView,ProviderCard,FilterPill}`, real): `GET /providers/discover`
   (public; `skill` slug partial, `country`, `city` partial, `min_reputation`, `page`, `page_size`). The chips are native
   `<select>`s over a styled pill: **All Skills** (the real `GET /skills` catalog — the mock's "categories" don't exist on
@@ -586,8 +595,9 @@ button asks first** ("Are you sure you want to log out?", `ConfirmLogoutDialog` 
   - **Delete Account**: the backend has no self-service deletion (admin-side only), so the sheet explains what deleting involves and offers **Email support** (a `mailto:` to `SUPPORT_EMAIL` prefilled with the account email) instead of a fake request. Logout uses the shared `useLogout`.
   - Not in the mocks, so not built: any settings for the client's own profile beyond the above (the mock's
     Provider Information item is providers-only; nothing client-specific was shown).
-- **Screens not built:** the client's Profile and Help pages, and the "success payments" modal (its image never
-  arrived). Undesigned but built anyway: the client's job detail, Fund/Release/Dispute dialogs and the client wallet.
+- **Screens not built:** the client's Help page (undesigned, no backend content for it either), and the "success
+  payments" modal (its image never arrived). Undesigned but built anyway: the client's job detail, Fund/Release/
+  Dispute dialogs, the client wallet, and (2026-09-22) the client's own Profile page.
 
 ## Known issues
 
