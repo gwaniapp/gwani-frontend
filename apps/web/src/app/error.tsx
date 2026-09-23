@@ -15,7 +15,7 @@ export default function Error({
 	useEffect(() => {
 		console.error(error);
 	}, [error]);
-
+	// error
 	return (
 		<StatusScreen
 			variant="error"
